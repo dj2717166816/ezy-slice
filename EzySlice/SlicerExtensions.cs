@@ -10,14 +10,15 @@ namespace EzySlice {
         /**
          * SlicedHull Return functions and appropriate overrides!
          */
+        //输入物体、平面、材质
         public static SlicedHull Slice(this GameObject obj, Plane pl, Material crossSectionMaterial = null) {
             return Slice(obj, pl, new TextureRegion(0.0f, 0.0f, 1.0f, 1.0f), crossSectionMaterial);
         }
-
+        //输入物体，平面上一点，法线，材质
         public static SlicedHull Slice(this GameObject obj, Vector3 position, Vector3 direction, Material crossSectionMaterial = null) {
             return Slice(obj, position, direction, new TextureRegion(0.0f, 0.0f, 1.0f, 1.0f), crossSectionMaterial);
         }
-
+        //输入物体，平面上一点，法线，纹理范围，材质
         public static SlicedHull Slice(this GameObject obj, Vector3 position, Vector3 direction, TextureRegion textureRegion, Material crossSectionMaterial = null) {
             Plane cuttingPlane = new Plane();
 
@@ -32,7 +33,7 @@ namespace EzySlice {
 
             return Slice(obj, cuttingPlane, textureRegion, crossSectionMaterial);
         }
-
+        //输入物体，平面，纹理范围，材质
         public static SlicedHull Slice(this GameObject obj, Plane pl, TextureRegion textureRegion, Material crossSectionMaterial = null) {
             return Slicer.Slice(obj, pl, textureRegion, crossSectionMaterial);
         }
@@ -55,6 +56,7 @@ namespace EzySlice {
         public static GameObject[] SliceInstantiate(this GameObject obj, Vector3 position, Vector3 direction, TextureRegion cuttingRegion, Material crossSectionMaterial = null) {
             EzySlice.Plane cuttingPlane = new EzySlice.Plane();
 
+            //将世界坐标系转换为局部坐标系
             Matrix4x4 mat = obj.transform.worldToLocalMatrix;
             Matrix4x4 transpose = mat.transpose;
             Matrix4x4 inv = transpose.inverse;

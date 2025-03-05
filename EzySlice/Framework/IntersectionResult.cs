@@ -11,6 +11,7 @@ namespace EzySlice {
      * via an optional indices array. Could lead for a faster
      * intersection test aswell.
      */
+    //存储切割后的结果
     public sealed class IntersectionResult {
 
         // general tag to check if this structure is valid
@@ -19,7 +20,7 @@ namespace EzySlice {
         // our intersection points/triangles
         private readonly Triangle[] upper_hull;
         private readonly Triangle[] lower_hull;
-        private readonly Vector3[] intersection_pt;
+        private readonly Vector3[] intersection_pt;//切割出的点
 
         // our counters. We use raw arrays for performance reasons
         private int upper_hull_count;

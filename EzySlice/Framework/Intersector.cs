@@ -13,6 +13,7 @@ namespace EzySlice {
          * in reference q. Function returns true if intersection has been found or
          * false otherwise.
          */
+        //给定切割平面和线段，求交点
         public static bool Intersect(Plane pl, Line ln, out Vector3 q) {
             return Intersector.Intersect(pl, ln.positionA, ln.positionB, out q);
         }
@@ -45,6 +46,7 @@ namespace EzySlice {
         /**
          * Support functionality 
          */
+        //计算三点围成三角形面积的二倍的带符号面积，正值说明点ABC是逆时针顺序，表示左转角；反之为顺时针
         public static float TriArea2D(float x1, float y1, float x2, float y2, float x3, float y3) {
             return (x1 - x2) * (y2 - y3) - (x2 - x3) * (y1 - y2);
         }
@@ -57,6 +59,7 @@ namespace EzySlice {
          * Results will be filled into the IntersectionResult reference. Check result.isValid()
          * for the final results.
          */
+        //计算平面切割三角形的结果
         public static void Intersect(Plane pl, Triangle tri, IntersectionResult result) {
             // clear the previous results from the IntersectionResult
             result.Clear();
@@ -69,18 +72,21 @@ namespace EzySlice {
             // check to see which side of the plane the points all
             // lay in. SideOf operation is a simple dot product and some comparison
             // operations, so these are a very quick checks
+            //判断点与平面的关系
             SideOfPlane sa = pl.SideOf(a);
             SideOfPlane sb = pl.SideOf(b);
             SideOfPlane sc = pl.SideOf(c);
 
             // we cannot intersect if the triangle points all fall on the same side
             // of the plane. This is an easy early out test as no intersections are possible.
+            //全在一侧
             if (sa == sb && sb == sc) {
                 return;
             }
 
             // detect cases where two points lay straight on the plane, meaning
             // that the plane is actually parralel with one of the edges of the triangle
+            //一个点在平面上，其他在一侧
             else if ((sa == SideOfPlane.ON && sa == sb) ||
                 (sa == SideOfPlane.ON && sa == sc) ||
                 (sb == SideOfPlane.ON && sb == sc)) {
@@ -88,6 +94,7 @@ namespace EzySlice {
             }
             
             // detect cases where one point is on the plane and the other two are on the same side
+            //两个点在平面上
             else if ((sa == SideOfPlane.ON && sb != SideOfPlane.ON && sb == sc) ||
                      (sb == SideOfPlane.ON && sa != SideOfPlane.ON && sa == sc) ||
                      (sc == SideOfPlane.ON && sa != SideOfPlane.ON && sa == sb)) {
@@ -97,14 +104,18 @@ namespace EzySlice {
             // keep in mind that intersection points are shared by both
             // the upper HULL and lower HULL hence they lie perfectly
             // on the plane that cut them
+
+//此处可判断两交点是否属于同一三角形，从而在截面连接时判定
+            //切割三角形得到两个交点
             Vector3 qa;
-            Vector3 qb;
+            Vector3 qb;                           
 
             // check the cases where the points of the triangle actually lie on the plane itself
             // in these cases, there is only going to be 2 triangles, one for the upper HULL and
             // the other on the lower HULL
             // we just need to figure out which points to accept into the upper or lower hulls.
-            if (sa == SideOfPlane.ON) {
+
+            if (sa == SideOfPlane.ON) {//一点在平面上，其他两点位于两侧
                 // if the point a is on the plane, test line b-c
                 if (Intersector.Intersect(pl, b, c, out qa)) {
                     // line b-c intersected, construct out triangles and return approprietly
@@ -289,6 +300,8 @@ namespace EzySlice {
             // at this point, all edge cases have been tested and failed, we need to perform
             // full intersection tests against the lines. From this point onwards we will generate
             // 3 triangles
+            //一个点都没在平面上
+
             else if (sa != sb && Intersector.Intersect(pl, a, b, out qa)) {
                 // intersection found against a - b
                 result.AddIntersectionPoint(qa);

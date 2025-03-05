@@ -10,6 +10,7 @@ namespace EzySlice {
      * TextureRegions are always stored in normalized UV Coordinate space between
      * 0.0f and 1.0f
      */
+    //包含映射的矩形的对角线两点坐标
     public struct TextureRegion {
         private readonly float pos_start_x;
         private readonly float pos_start_y;
@@ -35,6 +36,7 @@ namespace EzySlice {
          * Perform a mapping of a UV coordinate (computed in 0,1 space)
          * into the new coordinates defined by the provided TextureRegion
          */
+        //将默认0-1范围的一个二维坐标映射到TextureRegion的范围
         public Vector2 Map(Vector2 uv) {
             return Map(uv.x, uv.y);
         }
@@ -43,6 +45,7 @@ namespace EzySlice {
          * Perform a mapping of a UV coordinate (computed in 0,1 space)
          * into the new coordinates defined by the provided TextureRegion
          */
+        //将默认0-1范围的x、y坐标映射到TextureRegion的范围
         public Vector2 Map(float x, float y) {
             float mappedX = MAP(x, 0.0f, 1.0f, pos_start_x, pos_end_x);
             float mappedY = MAP(y, 0.0f, 1.0f, pos_start_y, pos_end_y);
@@ -53,6 +56,7 @@ namespace EzySlice {
         /**
          * Our mapping function to map arbitrary values into our required texture region
          */
+        //将范围从in_min到in_max的输入中的坐标映射到out的范围
         private static float MAP(float x, float in_min, float in_max, float out_min, float out_max) {
             return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
         }
@@ -72,12 +76,13 @@ namespace EzySlice {
          * Will throw a null exception if the texture does not exist. See
          * Texture.getTextureRegion() for function details.
          */
+        //输入材质、像素坐标、像素宽高,返回TextureRegion
         public static TextureRegion GetTextureRegion(this Material mat,
             int pixX,
             int pixY,
             int pixWidth,
             int pixHeight) {
-            return mat.mainTexture.GetTextureRegion(pixX, pixY, pixWidth, pixHeight);
+            return mat.mainTexture.GetTextureRegion(pixX, pixY, pixWidth, pixHeight);//提取xy为左下角的长宽为输入参数的纹理区域
         }
 
         /**
@@ -97,7 +102,7 @@ namespace EzySlice {
             int textureHeight = tex.height;
 
             // ensure we are not referencing out of bounds coordinates
-            // relative to our texture
+            // 防止超范围
             int calcWidth = Mathf.Min(textureWidth, pixWidth);
             int calcHeight = Mathf.Min(textureHeight, pixHeight);
             int calcX = Mathf.Min(Mathf.Abs(pixX), textureWidth);
@@ -109,7 +114,7 @@ namespace EzySlice {
             float endY = (calcY + calcHeight) / (float) textureHeight;
 
             // texture region is a struct which is allocated on the stack
-            return new TextureRegion(startX, startY, endX, endY);
+            return new TextureRegion(startX, startY, endX, endY);//返回化为0-1的uv坐标
         }
     }
 }

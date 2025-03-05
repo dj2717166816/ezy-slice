@@ -302,7 +302,7 @@ namespace EzySlice {
          * Returns true on success or false otherwise
          */
         public bool Split(Plane pl, IntersectionResult result) {
-            Intersector.Intersect(pl, this, result);
+            Intersector.Intersect(pl, this, result);//每次调用result都会被先清空
 
             return result.isValid;
         }

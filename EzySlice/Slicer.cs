@@ -12,6 +12,7 @@ namespace EzySlice {
         /**
          * An internal class for storing internal submesh values
          */
+        //包含两个部分的三角形列表
         internal class SlicedSubmesh {
             public readonly List<Triangle> upperHull = new List<Triangle>();
             public readonly List<Triangle> lowerHull = new List<Triangle>();
@@ -65,6 +66,8 @@ namespace EzySlice {
          * approprietly before the slice occurs
          * See -> Slice(Mesh, Plane) for more info
          */
+        //输入待切割物体，切割平面，材质范围大小，截面材质
+        //主要是检查工作
         public static SlicedHull Slice(GameObject obj, Plane pl, TextureRegion crossRegion, Material crossMaterial) {
             
             // cannot continue without a proper filter
@@ -143,6 +146,7 @@ namespace EzySlice {
             int submeshCount = sharedMesh.subMeshCount;
 
             // each submesh will be sliced and placed in its own array structure
+            //每个子网格都会有一个slice存它被切割后的两部分的三角形
             SlicedSubmesh[] slices = new SlicedSubmesh[submeshCount];
             // the cross section hull is common across all submeshes
             List<Vector3> crossHull = new List<Vector3>();
@@ -158,7 +162,7 @@ namespace EzySlice {
             // iterate over all the submeshes individually. vertices and indices
             // are all shared within the submesh
             for (int submesh = 0; submesh < submeshCount; submesh++) {
-                int[] indices = sharedMesh.GetTriangles(submesh);
+                int[] indices = sharedMesh.GetTriangles(submesh);//三角形的三个坐标们
                 int indicesCount = indices.Length;
 
                 SlicedSubmesh mesh = new SlicedSubmesh();
@@ -189,11 +193,12 @@ namespace EzySlice {
 
                     // slice this particular triangle with the provided
                     // plane
-                    if (newTri.Split(pl, result)) {
+                    if (newTri.Split(pl, result)) {//切割三角形并判断结果是否合法，调用时清空了之前的result内容
                         int upperHullCount = result.upperHullCount;
                         int lowerHullCount = result.lowerHullCount;
                         int interHullCount = result.intersectionPointCount;
 
+                        //以下为添加三角形
                         for (int i = 0; i < upperHullCount; i++) {
                             mesh.upperHull.Add(result.upperHull[i]);
                         }
@@ -205,7 +210,8 @@ namespace EzySlice {
                         for (int i = 0; i < interHullCount; i++) {
                             crossHull.Add(result.intersectionPoints[i]);
                         }
-                    } else {
+                    } 
+                    else {//非法时？
                         SideOfPlane sa = pl.SideOf(verts[i0]);
                         SideOfPlane sb = pl.SideOf(verts[i1]);
                         SideOfPlane sc = pl.SideOf(verts[i2]);
@@ -230,7 +236,8 @@ namespace EzySlice {
 
                         if (side == SideOfPlane.UP || side == SideOfPlane.ON) {
                             mesh.upperHull.Add(newTri);
-                        } else {
+                        } 
+                        else {
                             mesh.lowerHull.Add(newTri);
                         }
                     }
@@ -245,7 +252,8 @@ namespace EzySlice {
                 // check if at least one of the submeshes was sliced. If so, stop checking
                 // because we need to go through the generation step
                 if (slices[i] != null && slices[i].isValid) {
-                    return CreateFrom(slices, CreateFrom(crossHull, pl.normal, region), crossIndex);
+                    //传入上下部分的三角形列表（slice中），截面的交点，平面法线，材质范围，切面材质编号
+                    return CreateFrom(slices, CreateFrom(crossHull, pl.normal, region)/*用算法计算截面三角形*/, crossIndex);//返回切割后的上下网格在slicehull里
                 }
             }
 
@@ -256,6 +264,7 @@ namespace EzySlice {
         /**
          * Generates a single SlicedHull from a set of cut submeshes 
          */
+        //根据上下部分的三角形列表，截面三角形列表，材质编号，返回上下部分的网格
         private static SlicedHull CreateFrom(SlicedSubmesh[] meshes, List<Triangle> cross, int crossSectionIndex) {
             int submeshCount = meshes.Length;
 
@@ -264,8 +273,8 @@ namespace EzySlice {
 
             // get the total amount of upper, lower and intersection counts
             for (int submesh = 0; submesh < submeshCount; submesh++) {
-                upperHullCount += meshes[submesh].upperHull.Count;
-                lowerHullCount += meshes[submesh].lowerHull.Count;
+                upperHullCount += meshes[submesh].upperHull.Count;//所有子网格的上部分三角形数
+                lowerHullCount += meshes[submesh].lowerHull.Count;//所有子网格的下部分三角形数
             }
 
             Mesh upperHull = CreateUpperHull(meshes, upperHullCount, cross, crossSectionIndex);
@@ -285,18 +294,19 @@ namespace EzySlice {
         /**
          * Generate a single Mesh HULL of either the UPPER or LOWER hulls. 
          */
+        //根据子网格（只有三角形），此部分总三角形数，截面三角形，截面材质，生成真正的mesh
         private static Mesh CreateHull(SlicedSubmesh[] meshes, int total, List<Triangle> crossSection, int crossIndex, bool isUpper) {
             if (total <= 0) {
                 return null;
             }
 
-            int submeshCount = meshes.Length;
-            int crossCount = crossSection != null ? crossSection.Count : 0;
+            int submeshCount = meshes.Length;//子网格数
+            int crossCount = crossSection != null ? crossSection.Count : 0;//截面三角形面积
 
             Mesh newMesh = new Mesh();
-            newMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+            newMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;//选择32位索引，支持超过40亿个顶点
             
-            int arrayLen = (total + crossCount) * 3;
+            int arrayLen = (total + crossCount) * 3;//所有的点数
 
             bool hasUV = meshes[0].hasUV;
             bool hasNormal = meshes[0].hasNormal;
@@ -309,7 +319,7 @@ namespace EzySlice {
             Vector4[] newTangents = hasTangent ? new Vector4[arrayLen] : null;
 
             // each index refers to our submesh triangles
-            List<int[]> triangles = new List<int[]>(submeshCount);
+            List<int[]> triangles = new List<int[]>(submeshCount);//三角形对应的点的索引
 
             int vIndex = 0;
 
@@ -317,19 +327,21 @@ namespace EzySlice {
             for (int submesh = 0; submesh < submeshCount; submesh++) {
                 // pick the hull we will be playing around with
                 List<Triangle> hull = isUpper ? meshes[submesh].upperHull : meshes[submesh].lowerHull;
-                int hullCount = hull.Count;
+                int hullCount = hull.Count;//采用的部分的三角形数
 
-                int[] indices = new int[hullCount * 3];
+                int[] indices = new int[hullCount * 3];//索引集
 
                 // fill our mesh arrays
                 for (int i = 0, triIndex = 0; i < hullCount; i++, triIndex += 3) {
                     Triangle newTri = hull[i];
-
+                    
+                    //点在总点集中的索引
                     int i0 = vIndex + 0;
                     int i1 = vIndex + 1;
                     int i2 = vIndex + 2;
 
                     // add the vertices
+                    //添加点
                     newVertices[i0] = newTri.positionA;
                     newVertices[i1] = newTri.positionB;
                     newVertices[i2] = newTri.positionC;
@@ -357,6 +369,7 @@ namespace EzySlice {
 
                     // triangles are returned in clocwise order from the
                     // intersector, no need to sort these
+                    //添加三角形对点索引的记录
                     indices[triIndex] = i0;
                     indices[triIndex + 1] = i1;
                     indices[triIndex + 2] = i2;
@@ -369,8 +382,9 @@ namespace EzySlice {
             }
 
             // generate the cross section required for this particular hull
+            //同上部分，对截面的三角星和点进行处理
             if (crossSection != null && crossCount > 0) {
-                int[] crossIndices = new int[crossCount * 3];
+                int[] crossIndices = new int[crossCount * 3];//截面三角形点的索引
 
                 for (int i = 0, triIndex = 0; i < crossCount; i++, triIndex += 3) {
                     Triangle newTri = crossSection[i];
@@ -431,8 +445,10 @@ namespace EzySlice {
                 // add triangles to the index for later generation
                 if (triangles.Count <= crossIndex) {
                     triangles.Add(crossIndices);
-                } else {
+                } 
+                else {
                     // otherwise, we need to merge the triangles for the provided subsection
+                    //融合和截面相同材质的子网格
                     int[] prevTriangles = triangles[crossIndex];
                     int[] merged = new int[prevTriangles.Length + crossIndices.Length];
 
@@ -474,6 +490,7 @@ namespace EzySlice {
          * Generate Two Meshes (an upper and lower) cross section from a set of intersection
          * points and a plane normal. Intersection Points do not have to be in order.
          */
+//此函数之后要改成调用新截面算法
         private static List<Triangle> CreateFrom(List<Vector3> intPoints, Vector3 planeNormal, TextureRegion region) {
             return Triangulator.MonotoneChain(intPoints, planeNormal, out List<Triangle> tris, region) ? tris : null;
         }

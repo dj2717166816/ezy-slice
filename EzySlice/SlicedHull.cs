@@ -27,14 +27,14 @@ namespace EzySlice {
             if (newObject != null) {
                 newObject.transform.localPosition = original.transform.localPosition;
                 newObject.transform.localRotation = original.transform.localRotation;
-                newObject.transform.localScale = original.transform.localScale;
+                newObject.transform.localScale = original.transform.localScale;//切割后的部分保持和原物体同位置旋转和缩放
 
                 Material[] shared = original.GetComponent<MeshRenderer>().sharedMaterials;
                 Mesh mesh = original.GetComponent<MeshFilter>().sharedMesh;
 
                 // nothing changed in the hierarchy, the cross section must have been batched
                 // with the submeshes, return as is, no need for any changes
-                if (mesh.subMeshCount == upper_hull.subMeshCount) {
+                if (mesh.subMeshCount == upper_hull.subMeshCount) {//如果没有多出来的子网格
                     // the the material information
                     newObject.GetComponent<Renderer>().sharedMaterials = shared;
 
@@ -46,8 +46,8 @@ namespace EzySlice {
                 Material[] newShared = new Material[shared.Length + 1];
 
                 // copy our material arrays across using native copy (should be faster than loop)
-                System.Array.Copy(shared, newShared, shared.Length);
-                newShared[shared.Length] = crossSectionMat;
+                System.Array.Copy(shared, newShared, shared.Length);//复制之前的材质
+                newShared[shared.Length] = crossSectionMat;//添加新截面材质
 
                 // the the material information
                 newObject.GetComponent<Renderer>().sharedMaterials = newShared;
@@ -123,6 +123,7 @@ namespace EzySlice {
          * Helper function which will create a new GameObject to be able to add
          * a new mesh for rendering and return.
          */
+        //创建一个名字为name的带网格物体
         private static GameObject CreateEmptyObject(string name, Mesh hull) {
             if (hull == null) {
                 return null;
