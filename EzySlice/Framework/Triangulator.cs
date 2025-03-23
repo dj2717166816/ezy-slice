@@ -35,61 +35,50 @@ namespace EzySlice {
             }
         }
 
-        /**
-         * Overloaded variant of MonotoneChain which will calculate UV coordinates of the Triangles
-         * between 0.0 and 1.0 (default).
-         * 
-         * See MonotoneChain(vertices, normal, tri, TextureRegion) for full explanation
-         */
-        //输入点集、平面法线、输出点集
-        public static bool MonotoneChain(List<Vector3> vertices, Vector3 normal, out List<Triangle> tri) {
-            // default texture region is in coordinates 0,0 to 1,1
-            return MonotoneChain(vertices, normal, out tri, new TextureRegion(0.0f, 0.0f, 1.0f, 1.0f));
-        }
+        //对轮廓三角形化
+        //输入有顺序的轮廓点集、平面法线，输出三角形集
+        public static bool Triangulate(List<Vector3> vertices, Vector3 normal, out List<Triangle> tri, TextureRegion texRegion)
+        {
+            //vertices.Reverse();
 
-        /**
-         * O(n log n) Convex Hull Algorithm. 
-         * Accepts a list of vertices as Vector3 and triangulates them according to a projection
-         * plane defined as planeNormal. Algorithm will output vertices, indices and UV coordinates
-         * as arrays
-         */
-
-        //输入点集、平面法线、输出点集、纹理区域
-        public static bool MonotoneChain(List<Vector3> vertices, Vector3 normal, out List<Triangle> tri, TextureRegion texRegion) {
             int count = vertices.Count;
 
-            // we cannot triangulate less than 3 points. Use minimum of 3 points
-            if (count < 3) {
+            if (count < 3)
+            {
                 tri = null;
                 return false;
             }
 
-            // first, we map from 3D points into a 2D plane represented by the provided normal
+            tri = new List<Triangle>();
+            List<int> indices = new List<int>();
+            for (int i = 0; i < vertices.Count; i++)
+            {
+                indices.Add(i);
+            }
+
             //创建平面上的正交向量
             Vector3 u = Vector3.Normalize(Vector3.Cross(normal, Vector3.up));
-            if (Vector3.zero == u) {//防止法线与上方向平行
+            if (Vector3.zero == u)
+            {//防止法线与上方向平行
                 u = Vector3.Normalize(Vector3.Cross(normal, Vector3.forward));
             }
             Vector3 v = Vector3.Cross(u, normal);
 
-            // generate an array of mapped values
             //创建投影操作的数组
             Mapped2D[] mapped = new Mapped2D[count];
-
-            // these values will be used to generate new UV coordinates later on
             float maxDivX = float.MinValue;
             float maxDivY = float.MinValue;
             float minDivX = float.MaxValue;
             float minDivY = float.MaxValue;
 
-            // map the 3D vertices into the 2D mapped values
-            for (int i = 0; i < count; i++) {
+            //投影到二维平面
+            for (int i = 0; i < count; i++)
+            {
                 Vector3 vertToAdd = vertices[i];
 
                 Mapped2D newMappedValue = new Mapped2D(vertToAdd, u, v);
                 Vector2 mapVal = newMappedValue.mappedValue;
 
-                // grab our maximal values so we can map UV's in a proper range
                 //确定uv范围
                 maxDivX = Mathf.Max(maxDivX, mapVal.x);
                 maxDivY = Mathf.Max(maxDivY, mapVal.y);
@@ -98,88 +87,68 @@ namespace EzySlice {
 
                 mapped[i] = newMappedValue;
             }
-
-            // sort our newly generated array values
-            //按照 x坐标从小到大排序，若x相同再按y排序，即用Monotone Chain算法依赖按x排序的点集来构建上下凸包
-            Array.Sort<Mapped2D>(mapped, (a, b) => {
-                Vector2 x = a.mappedValue;
-                Vector2 p = b.mappedValue;
-
-                return (x.x < p.x || (x.x == p.x && x.y < p.y)) ? -1 : 1;
-            });
-
-            // our final hull mappings will end up in here
-
-            Mapped2D[] hulls = new Mapped2D[count + 1];
-
-            int k = 0;
-
-            // build the lower hull of the chain
-            //计算下半边缘
-            for (int i = 0; i < count; i++) {
-                while (k >= 2) {//加入两点后
-                    Vector2 mA = hulls[k - 2].mappedValue;
-                    Vector2 mB = hulls[k - 1].mappedValue;
-                    Vector2 mC = mapped[i].mappedValue;
-
-                    if (Intersector.TriArea2D(mA.x, mA.y, mB.x, mB.y, mC.x, mC.y) > 0.0f) {//计算是不是逆时针转角
-                        break;
-                    }
-
-                    k--;//如果不是，弹出栈顶，即k回退一位
-                }
-
-                hulls[k++] = mapped[i];
-            }
-
-            // build the upper hull of the chain
-            for (int i = count - 2, t = k + 1; i >= 0; i--) {//count-2防止重复计入最大点
-                while (k >= t) {
-                    Vector2 mA = hulls[k - 2].mappedValue;
-                    Vector2 mB = hulls[k - 1].mappedValue;
-                    Vector2 mC = mapped[i].mappedValue;
-
-                    if (Intersector.TriArea2D(mA.x, mA.y, mB.x, mB.y, mC.x, mC.y) > 0.0f) {
-                        break;
-                    }
-
-                    k--;
-                }
-
-                hulls[k++] = mapped[i];
-            }
-
-            // finally we can build our mesh, generate all the variables
-            // and fill them up
-            int vertCount = k - 1;
-            int triCount = (vertCount - 2) * 3;//计入三角形的顶点数（含重复）
-
-            // this should not happen, but here just in case
-            if (vertCount < 3) {
-                tri = null;
-                return false;
-            }
-
-            // ensure List does not dynamically grow, performing copy ops each time!
-            tri = new List<Triangle>(triCount / 3);
-
             float width = maxDivX - minDivX;
             float height = maxDivY - minDivY;
 
-            int indexCount = 1;
+//AI算法需检查
+            //耳切法
+            while (indices.Count >= 3)
+            {
+                bool earFound = false;
+                for (int i = 0; i < indices.Count; i++)
+                {
 
-            // generate both the vertices and uv's in this loop
-            for (int i = 0; i < triCount; i += 3) {
-                // the Vertices in our triangle
-                Mapped2D posA = hulls[0];
-                Mapped2D posB = hulls[indexCount];
-                Mapped2D posC = hulls[indexCount + 1];//起始点与每个点相连构成三角网格
+                    int prev = indices[(i - 1 + indices.Count) % indices.Count];
+                    int curr = indices[i];
+                    int next = indices[(i + 1) % indices.Count];
 
-                // generate UV Maps
+                    Vector2 a = mapped[prev].mappedValue;
+                    Vector2 b = mapped[curr].mappedValue;
+                    Vector2 c = mapped[next].mappedValue;
+
+                    if (IsConvex(a, b, c) && !ContainsPoint(mapped, indices, a, b, c))
+                    {
+                        //获取点的uv位置
+                        Vector2 uvA = mapped[prev].mappedValue;
+                        Vector2 uvB = mapped[curr].mappedValue;
+                        Vector2 uvC = mapped[next].mappedValue;
+
+                        //将坐标映射到0-1
+                        uvA.x = (uvA.x - minDivX) / width;
+                        uvA.y = (uvA.y - minDivY) / height;
+
+                        uvB.x = (uvB.x - minDivX) / width;
+                        uvB.y = (uvB.y - minDivY) / height;
+
+                        uvC.x = (uvC.x - minDivX) / width;
+                        uvC.y = (uvC.y - minDivY) / height;
+
+                        //以三维坐标创建三角形
+                        Triangle newTriangle = new Triangle(mapped[prev].originalValue, mapped[curr].originalValue, mapped[next].originalValue);
+                        newTriangle.SetUV(texRegion.Map(uvA), texRegion.Map(uvB), texRegion.Map(uvC));
+                        newTriangle.SetNormal(normal, normal, normal);
+                        newTriangle.ComputeTangents();
+
+                        //将新生成的三角形加入输出网格
+                        tri.Add(newTriangle);
+
+                        indices.RemoveAt(i);
+                        earFound = true;
+                        break;
+                    }
+                }
+                if (!earFound)
+                {
+                    break;
+                }
+            }
+            
+            if (indices.Count == 3)
+            {
                 //获取点的uv位置
-                Vector2 uvA = posA.mappedValue;
-                Vector2 uvB = posB.mappedValue;
-                Vector2 uvC = posC.mappedValue;
+                Vector2 uvA = mapped[0].mappedValue;
+                Vector2 uvB = mapped[1].mappedValue;
+                Vector2 uvC = mapped[2].mappedValue;
 
                 //将坐标映射到0-1
                 uvA.x = (uvA.x - minDivX) / width;
@@ -192,24 +161,52 @@ namespace EzySlice {
                 uvC.y = (uvC.y - minDivY) / height;
 
                 //以三维坐标创建三角形
-                Triangle newTriangle = new Triangle(posA.originalValue, posB.originalValue, posC.originalValue);
-
-                // ensure our UV coordinates are mapped into the requested TextureRegion
-                //设置纹理
+                Triangle newTriangle = new Triangle(mapped[0].originalValue, mapped[1].originalValue, mapped[2].originalValue);
                 newTriangle.SetUV(texRegion.Map(uvA), texRegion.Map(uvB), texRegion.Map(uvC));
-
-                // the normals is the same for all vertices since the final mesh is completly flat
-                //设置法线
                 newTriangle.SetNormal(normal, normal, normal);
                 newTriangle.ComputeTangents();
 
                 //将新生成的三角形加入输出网格
                 tri.Add(newTriangle);
-
-                indexCount++;
             }
-
+            if (tri.Count != count - 2)
+            {
+                vertices.Reverse();
+                Triangulate(vertices, normal, out tri, texRegion);
+            }
             return true;
         }
+
+        private static bool IsConvex(Vector2 a, Vector2 b, Vector2 c)
+        {
+            return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x) > 0;
+        }
+
+        private static bool ContainsPoint(Mapped2D[] polygon, List<int> indices, Vector2 a, Vector2 b, Vector2 c)
+        {
+            for (int i = 0; i < indices.Count; i++)
+            {
+                Vector2 p = polygon[indices[i]].mappedValue;
+                if (p != a && p != b && p != c && IsPointInTriangle(p, a, b, c))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool IsPointInTriangle(Vector2 p, Vector2 a, Vector2 b, Vector2 c)
+        {
+            float area = 0.5f * (-b.y * c.x + a.y * (-b.x + c.x) + a.x * (b.y - c.y) + b.x * c.y);
+
+            if (Mathf.Abs(area) < 1e-6f) return false;  // 避免除零错误
+
+            float invDenom = 1.0f / (2.0f * area);
+            float s = ((a.y * c.x - a.x * c.y) + (c.y - a.y) * p.x + (a.x - c.x) * p.y) * invDenom;
+            float t = ((a.x * b.y - a.y * b.x) + (a.y - b.y) * p.x + (b.x - a.x) * p.y) * invDenom;
+
+            return s >= 0 && t >= 0 && (1 - s - t) >= 0;
+        }
+
     }
 }

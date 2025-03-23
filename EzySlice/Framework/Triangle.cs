@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 
 namespace EzySlice {
@@ -142,6 +143,36 @@ namespace EzySlice {
             get { return this.m_tan_c; }
         }
 
+        public static bool AreTrianglesEqual(Triangle tri1, Triangle tri2)
+        {
+            Vector3[] p1 = { tri1.positionA, tri1.positionB, tri1.positionC };
+            Vector3[] p2 = { tri2.positionA, tri2.positionB, tri2.positionC };
+            return AreTrianglesEqual(p1,p2);
+        }
+
+        public static bool AreTrianglesEqual(Vector3[] tri1, Vector3[] tri2)
+        {
+            if (tri1.Length != 3 || tri2.Length != 3) return false;
+
+            // 对两个三角形的顶点排序（按坐标值排序）
+            var sortedTri1 = tri1.OrderBy(v => v.x).ThenBy(v => v.y).ThenBy(v => v.z).ToArray();
+            var sortedTri2 = tri2.OrderBy(v => v.x).ThenBy(v => v.y).ThenBy(v => v.z).ToArray();
+
+            // 逐个比较顶点坐标，考虑浮点误差
+            for (int i = 0; i < 3; i++)
+            {
+                if (!AreVectorsEqual(sortedTri1[i], sortedTri2[i])) return false;
+            }
+
+            return true;
+        }
+
+        private static bool AreVectorsEqual(Vector3 v1, Vector3 v2)
+        {
+            const float Tolerance = 0.0001f; // 允许的误差范围
+            return Vector3.SqrMagnitude(v1 - v2) < Tolerance * Tolerance;
+        }
+
         /**
          * Compute and set the tangents of this triangle
          * Derived From https://answers.unity.com/questions/7789/calculating-tangents-vector4.html
@@ -203,6 +234,7 @@ namespace EzySlice {
          * Calculate the Barycentric coordinate weight values u-v-w for Point p in respect to the provided
          * triangle. This is useful for computing new UV coordinates for arbitrary points.
          */
+        //计算点在三角形中的重心表示
         public Vector3 Barycentric(Vector3 p) {
             Vector3 a = m_pos_a;
             Vector3 b = m_pos_b;
@@ -294,56 +326,6 @@ namespace EzySlice {
             Vector3 weights = Barycentric(pt);
 
             return (weights.x * m_tan_a) + (weights.y * m_tan_b) + (weights.z * m_tan_c);
-        }
-
-        /**
-         * Helper function to split this triangle by the provided plane and store
-         * the results inside the IntersectionResult structure.
-         * Returns true on success or false otherwise
-         */
-        public bool Split(Plane pl, IntersectionResult result) {
-            Intersector.Intersect(pl, this, result);//每次调用result都会被先清空
-
-            return result.isValid;
-        }
-
-        /**
-         * Check the triangle winding order, if it's Clock Wise or Counter Clock Wise 
-         */
-        public bool IsCW() {
-            return SignedSquare(m_pos_a, m_pos_b, m_pos_c) >= float.Epsilon;
-        }
-
-        /**
-         * Returns the Signed square of a given triangle, useful for checking the
-         * winding order
-         */
-        public static float SignedSquare(Vector3 a, Vector3 b, Vector3 c) {
-            return (a.x * (b.y * c.z - b.z * c.y) -
-                a.y * (b.x * c.z - b.z * c.x) +
-                a.z * (b.x * c.y - b.y * c.x));
-        }
-
-        /**
-         * Editor only DEBUG functionality. This should not be compiled in the final
-         * Version.
-         */
-        public void OnDebugDraw() {
-            OnDebugDraw(Color.white);
-        }
-
-        public void OnDebugDraw(Color drawColor) {
-#if UNITY_EDITOR
-            Color prevColor = Gizmos.color;
-
-            Gizmos.color = drawColor;
-
-            Gizmos.DrawLine(positionA, positionB);
-            Gizmos.DrawLine(positionB, positionC);
-            Gizmos.DrawLine(positionC, positionA);
-
-            Gizmos.color = prevColor;
-#endif
         }
     }
 }

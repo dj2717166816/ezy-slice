@@ -1,151 +1,77 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace EzySlice {
 
-    /**
-     * A Basic Structure which contains intersection information
-     * for Plane->Triangle Intersection Tests
-     * TO-DO -> This structure can be optimized to hold less data
-     * via an optional indices array. Could lead for a faster
-     * intersection test aswell.
-     */
-    //存储切割后的结果
     public sealed class IntersectionResult {
 
-        // general tag to check if this structure is valid
-        private bool is_success;
+        private List<Triangle> upper_tris;
+        private List<Triangle> lower_tris;
+        private List<Vector3> intersection_pt;//切割出的点
+        private List<CuttingLineAndTri> cuttingLineAndTris;
+        public Dictionary<CuttingLineAndTri,(int,bool)> has_clat;
 
-        // our intersection points/triangles
-        private readonly Triangle[] upper_hull;
-        private readonly Triangle[] lower_hull;
-        private readonly Vector3[] intersection_pt;//切割出的点
+        class ClatComparer : IEqualityComparer<CuttingLineAndTri>
+        {
+            private const float Tolerance = 1e-4f; // 允许的误差
 
-        // our counters. We use raw arrays for performance reasons
-        private int upper_hull_count;
-        private int lower_hull_count;
-        private int intersection_pt_count;
+            public bool Equals(CuttingLineAndTri a, CuttingLineAndTri b)
+            {
+                return Equals(a.line.positionA, b.line.positionA) && Equals(a.line.positionB, b.line.positionB);
+            }
+            public bool Equals(Vector3 a, Vector3 b)
+            {
+                return Mathf.Abs(a.x - b.x) < Tolerance &&
+                       Mathf.Abs(a.y - b.y) < Tolerance &&
+                       Mathf.Abs(a.z - b.z) < Tolerance;
+            }
+            public int GetHashCode(CuttingLineAndTri obj)
+            {
+                return GetHashCode(obj.line.positionA) + GetHashCode(obj.line.positionB);
+            }
+            public int GetHashCode(Vector3 obj)
+            {
+                int xHash = Mathf.RoundToInt(obj.x * 1000).GetHashCode();
+                int yHash = Mathf.RoundToInt(obj.y * 1000).GetHashCode();
+                int zHash = Mathf.RoundToInt(obj.z * 1000).GetHashCode();
+                return xHash ^ (yHash << 2) ^ (zHash >> 2);
+            }
+        }
 
         public IntersectionResult() {
-            this.is_success = false;
-
-            this.upper_hull = new Triangle[2];
-            this.lower_hull = new Triangle[2];
-            this.intersection_pt = new Vector3[2];
-
-            this.upper_hull_count = 0;
-            this.lower_hull_count = 0;
-            this.intersection_pt_count = 0;
+            this.upper_tris = new List<Triangle>();
+            this.lower_tris = new List<Triangle>(); 
+            this.intersection_pt = new List<Vector3>();
+            this.cuttingLineAndTris = new List<CuttingLineAndTri>();
+            this.has_clat = new Dictionary<CuttingLineAndTri, (int, bool)>(new ClatComparer());
         }
 
-        public Triangle[] upperHull {
-            get { return upper_hull; }
+        public  List<Triangle> upperTri
+        {
+            get { return upper_tris; }
         }
-
-        public Triangle[] lowerHull {
-            get { return lower_hull; }
+        public List<Triangle> lowerTri
+        {
+            get { return lower_tris; }
         }
-
-        public Vector3[] intersectionPoints {
-            get { return intersection_pt; }
+        public List<CuttingLineAndTri> intersectLines
+        {
+            get { return cuttingLineAndTris; }
         }
-
-        public int upperHullCount {
-            get { return upper_hull_count; }
-        }
-
-        public int lowerHullCount {
-            get { return lower_hull_count; }
-        }
-
-        public int intersectionPointCount {
-            get { return intersection_pt_count; }
-        }
-
-        public bool isValid {
-            get { return is_success; }
-        }
-
-        /**
-         * Used by the intersector, adds a new triangle to the
-         * upper hull section
-         */
-        public IntersectionResult AddUpperHull(Triangle tri) {
-            upper_hull[upper_hull_count++] = tri;
-
-            is_success = true;
-
-            return this;
-        }
-
-        /**
-         * Used by the intersector, adds a new triangle to the
-         * lower gull section
-         */
-        public IntersectionResult AddLowerHull(Triangle tri) {
-            lower_hull[lower_hull_count++] = tri;
-
-            is_success = true;
-
-            return this;
-        }
-
-        /**
-         * Used by the intersector, adds a new intersection point
-         * which is shared by both upper->lower hulls
-         */
         public void AddIntersectionPoint(Vector3 pt) {
-            intersection_pt[intersection_pt_count++] = pt;
+            intersection_pt.Add(pt);
         }
-
-        /**
-         * Clear the current state of this object 
-         */
+        public void AddCuttingLine(CuttingLineAndTri clat)
+        {
+            cuttingLineAndTris.Add(clat);
+        }
         public void Clear() {
-            is_success = false;
-            upper_hull_count = 0;
-            lower_hull_count = 0;
-            intersection_pt_count = 0;
-        }
-
-        /**
-         * Editor only DEBUG functionality. This should not be compiled in the final
-         * Version.
-         */
-        public void OnDebugDraw() {
-            OnDebugDraw(Color.white);
-        }
-
-        public void OnDebugDraw(Color drawColor) {
-#if UNITY_EDITOR
-
-            if (!isValid) {
-                return;
-            }
-
-            Color prevColor = Gizmos.color;
-
-            Gizmos.color = drawColor;
-
-            // draw the intersection points
-            for (int i = 0; i < intersectionPointCount; i++) {
-                Gizmos.DrawSphere(intersectionPoints[i], 0.1f);
-            }
-
-            // draw the upper hull in RED
-            for (int i = 0; i < upperHullCount; i++) {
-                upperHull[i].OnDebugDraw(Color.red);
-            }
-
-            // draw the lower hull in BLUE
-            for (int i = 0; i < lowerHullCount; i++) {
-                lowerHull[i].OnDebugDraw(Color.blue);
-            }
-
-            Gizmos.color = prevColor;
-
-#endif
+            upper_tris.Clear();
+            lower_tris.Clear();
+            intersection_pt.Clear();
+            cuttingLineAndTris.Clear();
         }
     }
 }

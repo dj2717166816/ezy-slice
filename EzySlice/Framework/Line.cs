@@ -6,18 +6,42 @@ namespace EzySlice {
     public struct Line {
         private readonly Vector3 m_pos_a;
         private readonly Vector3 m_pos_b;
-
-        public Line(Vector3 pta, Vector3 ptb) {
-            this.m_pos_a = pta;
-            this.m_pos_b = ptb;
+        private readonly bool flip;
+        public Line(Vector3 a, Vector3 b) {
+            // 确保边是无向的：总是让 a 是更小的点
+            if (a.GetHashCode() < b.GetHashCode())
+            {
+                this.m_pos_a = a;
+                this.m_pos_b = b;
+                this.flip = false;
+            }
+            else
+            {
+                this.m_pos_a = b;
+                this.m_pos_b = a;
+                this.flip = true;
+            }
         }
-
-        public float dist {
-            get { return Vector3.Distance(this.m_pos_a, this.m_pos_b); }
+        public bool Equals(Line other)
+        {
+            return (m_pos_a == other.m_pos_a && m_pos_b == other.m_pos_b);
         }
-
-        public float distSq {
-            get { return (this.m_pos_a - this.m_pos_b).sqrMagnitude; }
+        public override bool Equals(object obj)
+        {
+            if (obj is Line other)
+            {
+                return (m_pos_a == other.m_pos_a && m_pos_b == other.m_pos_b) ||
+                       (m_pos_a == other.m_pos_b && m_pos_b == other.m_pos_a); // 处理无向边
+            }
+            return false;
+        }
+        public override int GetHashCode()
+        {
+            return m_pos_a.GetHashCode() ^ m_pos_b.GetHashCode();
+        }
+        public bool is_fliped
+        {
+            get { return flip; }
         }
 
         public Vector3 positionA {

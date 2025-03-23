@@ -1,6 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
+using EzySlice;
+using UnityEditor;
 
 namespace EzySlice {
 
@@ -14,8 +17,8 @@ namespace EzySlice {
          */
         //包含两个部分的三角形列表
         internal class SlicedSubmesh {
-            public readonly List<Triangle> upperHull = new List<Triangle>();
-            public readonly List<Triangle> lowerHull = new List<Triangle>();
+            public List<Triangle> upperHull = new List<Triangle>();
+            public List<Triangle> lowerHull = new List<Triangle>();
 
             /**
              * Check if the submesh has had any UV's added.
@@ -88,7 +91,7 @@ namespace EzySlice {
             Material[] materials = renderer.sharedMaterials;
 
             Mesh mesh = filter.sharedMesh;
-
+            
             // cannot slice a mesh that doesn't exist
             if (mesh == null) {
                 Debug.LogWarning("EzySlice::Slice -> Provided GameObject must have a Mesh that is not NULL.");
@@ -121,7 +124,7 @@ namespace EzySlice {
                     }
                 }
             }
-
+            
             return Slice(mesh, pl, crossRegion, crossIndex);
         }
 
@@ -138,6 +141,7 @@ namespace EzySlice {
                 return null;
             }
 
+
             Vector3[] verts = sharedMesh.vertices;
             Vector2[] uv = sharedMesh.uv;
             Vector3[] norm = sharedMesh.normals;
@@ -145,35 +149,33 @@ namespace EzySlice {
 
             int submeshCount = sharedMesh.subMeshCount;
 
-            // each submesh will be sliced and placed in its own array structure
             //每个子网格都会有一个slice存它被切割后的两部分的三角形
             SlicedSubmesh[] slices = new SlicedSubmesh[submeshCount];
-            // the cross section hull is common across all submeshes
-            List<Vector3> crossHull = new List<Vector3>();
 
-            // we reuse this object for all intersection tests
             IntersectionResult result = new IntersectionResult();
+            List<Triangle> cross = new List<Triangle>();//截面三角形
 
-            // see if we would like to split the mesh using uv, normals and tangents
             bool genUV = verts.Length == uv.Length;
             bool genNorm = verts.Length == norm.Length;
             bool genTan = verts.Length == tan.Length;
 
-            // iterate over all the submeshes individually. vertices and indices
-            // are all shared within the submesh
             for (int submesh = 0; submesh < submeshCount; submesh++) {
-                int[] indices = sharedMesh.GetTriangles(submesh);//三角形的三个坐标们
+                result.Clear();
+                int[] indices = sharedMesh.GetTriangles(submesh);//三角形的三个索引们
                 int indicesCount = indices.Length;
+                slices[submesh] = new SlicedSubmesh();
+                cross.Clear();
+                List<Triangle> triangles = new List<Triangle>();//三角形的列表
+                List<bool> visited = new List<bool>();
+//此处int[]可能有问题，导致Search出现bug
+                Dictionary<Line, int[]> LineTri = new Dictionary<Line, int[]>();
 
-                SlicedSubmesh mesh = new SlicedSubmesh();
-
-                // loop through all the mesh vertices, generating upper and lower hulls
-                // and all intersection points
+                //先对三角形进行遍历，设置好UV等数据后加入三角形列表，方便用点查找
                 for (int index = 0; index < indicesCount; index += 3) {
                     int i0 = indices[index + 0];
                     int i1 = indices[index + 1];
                     int i2 = indices[index + 2];
-
+                    //获取索引后从点集找到相应的点组成Triangle
                     Triangle newTri = new Triangle(verts[i0], verts[i1], verts[i2]);
 
                     // generate UV if available
@@ -190,70 +192,88 @@ namespace EzySlice {
                     if (genTan) {
                         newTri.SetTangent(tan[i0], tan[i1], tan[i2]);
                     }
+                    //将三角形加入列表，设置访问标记
+                    triangles.Add(newTri);
+                    visited.Add(false);
+                    //先切，一个Cuttting函数，输入三角形、平面，将切割后的CuttingLineAndTri存到result里
+                    Intersector.Cutting(pl,newTri,triangles.Count-1,result);
+                }
 
-                    // slice this particular triangle with the provided
-                    // plane
-                    if (newTri.Split(pl, result)) {//切割三角形并判断结果是否合法，调用时清空了之前的result内容
-                        int upperHullCount = result.upperHullCount;
-                        int lowerHullCount = result.lowerHullCount;
-                        int interHullCount = result.intersectionPointCount;
+                List<CuttingLineAndTri> contour ;
+                //线段连成轮廓，判断切哪段,将切面三角剖分并设置uv等
 
-                        //以下为添加三角形
-                        for (int i = 0; i < upperHullCount; i++) {
-                            mesh.upperHull.Add(result.upperHull[i]);
-                        }
+                cross = CaculateContour(/*triangles,*/result,pl,region,out contour);
 
-                        for (int i = 0; i < lowerHullCount; i++) {
-                            mesh.lowerHull.Add(result.lowerHull[i]);
-                        }
+                //将被切的三角形进行标记并切割
+                for (int i = 0; i < contour.Count(); i++)
+                {
+                    if (contour[i].TriIndex == -1) { continue; }
+                    int index = contour[i].TriIndex;
+                    visited[index]=true;
+                    //切割函数，对三角形集进行添加和标记操作
+                    Intersector.ReCutting(pl, contour[i] , visited, triangles, result);
+                }
 
-                        for (int i = 0; i < interHullCount; i++) {
-                            crossHull.Add(result.intersectionPoints[i]);
-                        }
-                    } 
-                    else {//非法时？
-                        SideOfPlane sa = pl.SideOf(verts[i0]);
-                        SideOfPlane sb = pl.SideOf(verts[i1]);
-                        SideOfPlane sc = pl.SideOf(verts[i2]);
+                //建立边-三角形映射
+                for(int i=0; i< triangles.Count; i++)
+                {
+                    Triangle tri = triangles[i];
+                    Vector3 a = tri.positionA;
+                    Vector3 b = tri.positionB;
+                    Vector3 c = tri.positionC;
 
-                        SideOfPlane side = SideOfPlane.ON;
-                        if (sa != SideOfPlane.ON)
-                        {
-                            side = sa;
-                        }
-                        
-                        if (sb != SideOfPlane.ON)
-                        {
-                            Debug.Assert(side == SideOfPlane.ON || side == sb);
-                            side = sb;
-                        }
-                        
-                        if (sc != SideOfPlane.ON)
-                        {
-                            Debug.Assert(side == SideOfPlane.ON || side == sc);
-                            side = sc;
-                        }
+                    Line line1 = new Line(a, b);
+                    Line line2 = new Line(b, c);
+                    Line line3 = new Line(c, a);
 
-                        if (side == SideOfPlane.UP || side == SideOfPlane.ON) {
-                            mesh.upperHull.Add(newTri);
-                        } 
-                        else {
-                            mesh.lowerHull.Add(newTri);
-                        }
+                    if (LineTri.TryGetValue(line1, out var t1))
+                    {
+                        int[] n = { t1[0], i };
+                        LineTri[line1] = n;
+                    }
+                    else
+                    {
+                        int[] n = { i };
+                        LineTri[line1] = n;
+                    }
+                    if (LineTri.TryGetValue(line2, out var t2))
+                    {
+                        int[] n = { t2[0], i };
+                        LineTri[line2] = n;
+                    }
+                    else
+                    {
+                        int[] n = { i };
+                        LineTri[line2] = n;
+                    }
+                    if (LineTri.TryGetValue(line3, out var t3))
+                    {
+                        int[] n = { t3[0], i };
+                        LineTri[line3] = n;
+                    }
+                    else
+                    {
+                        int[] n = { i };
+                        LineTri[line3] = n;
                     }
                 }
 
-                // register into the index
-                slices[submesh] = mesh;
+                //分别搜索两部分
+                slices[submesh].upperHull = result.upperTri;
+                Intersector.Search(result.upperTri[0], LineTri, triangles, visited, slices[submesh].upperHull);
+                slices[submesh].lowerHull = result.lowerTri;
+                Intersector.Search(result.lowerTri[0], LineTri, triangles, visited, slices[submesh].lowerHull);
+
+                //先切，线段带三角形传进result，线段连成轮廓，判断切哪段
+                //将要切割段的三角形真正切开并创建新三角形，设置uv等，用新三角形替换原三角形
+                //建立边-三角形映射，设置搜索时visited标记
+                //之后开搜，将搜到的两边存到slice.submesh
             }
 
-            // check if slicing actually occured
             for (int i = 0; i < slices.Length; i++) {
-                // check if at least one of the submeshes was sliced. If so, stop checking
-                // because we need to go through the generation step
                 if (slices[i] != null && slices[i].isValid) {
-                    //传入上下部分的三角形列表（slice中），截面的交点，平面法线，材质范围，切面材质编号
-                    return CreateFrom(slices, CreateFrom(crossHull, pl.normal, region)/*用算法计算截面三角形*/, crossIndex);//返回切割后的上下网格在slicehull里
+                    //传入上下部分的三角形列表（slice中），截面的交点->截面三角形，平面法线，材质范围，切面材质编号
+                    return CreateFrom(slices, cross/*用算法计算截面三角形*/, crossIndex);//返回切割后的上下网格在slicehull里
                 }
             }
 
@@ -261,9 +281,89 @@ namespace EzySlice {
             return null;
         }
 
-        /**
-         * Generates a single SlicedHull from a set of cut submeshes 
-         */
+        class Vector3Comparer : IEqualityComparer<Vector3>
+        {
+            private const float Tolerance = 1e-4f; // 允许的误差
+
+            public bool Equals(Vector3 a, Vector3 b)
+            {
+                return Mathf.Abs(a.x - b.x) < Tolerance &&
+                       Mathf.Abs(a.y - b.y) < Tolerance &&
+                       Mathf.Abs(a.z - b.z) < Tolerance;
+            }
+
+            public int GetHashCode(Vector3 obj)
+            {
+                int xHash = Mathf.RoundToInt(obj.x * 1000).GetHashCode();
+                int yHash = Mathf.RoundToInt(obj.y * 1000).GetHashCode();
+                int zHash = Mathf.RoundToInt(obj.z * 1000).GetHashCode();
+                return xHash ^ (yHash << 2) ^ (zHash >> 2);
+            }
+        }
+
+        private static  List<Triangle> CaculateContour(IntersectionResult result, Plane pl, TextureRegion region, out List<CuttingLineAndTri> contour)
+        {
+
+            List<CuttingLineAndTri> clats = result.intersectLines;//所有的线段
+            HashSet<Vector3> verts = new HashSet<Vector3>(new Vector3Comparer());
+            contour =new List<CuttingLineAndTri>();//最终的轮廓
+            Dictionary<Vector3, List<int>> point2line = new Dictionary<Vector3, List<int>>(new Vector3Comparer());//点到线段的映射
+
+            for(int i = 0; i < clats.Count(); i++)//遍历线段，建立点到线段索引的映射，并将所有点加入点集
+            {
+                if (!point2line.TryGetValue(clats[i].line.positionA, out List<int> value1)) { point2line.Add(clats[i].line.positionA, new List<int>()); verts.Add(clats[i].line.positionA); }
+                point2line[clats[i].line.positionA].Add(i);
+                if (!point2line.TryGetValue(clats[i].line.positionB, out List<int> value2)) { point2line.Add(clats[i].line.positionB, new List<int>()); verts.Add(clats[i].line.positionB); }
+                point2line[clats[i].line.positionB].Add(i); 
+            }
+
+            bool[] visited = new bool[clats.Count()];
+            List<List<CuttingLineAndTri>> category =new List<List<CuttingLineAndTri>>();
+            List<List<Vector3>> vertexs = new List<List<Vector3>>();
+            float min_dist = float.MaxValue;
+            int target = 0;
+
+            while (verts.Count() > 0)
+            {
+                List<CuttingLineAndTri> tobeadd = new List<CuttingLineAndTri>();
+                category.Add(tobeadd);
+                vertexs.Add(new List<Vector3>());
+                Vector3 pt = verts.First();
+                Vector3 temp = Vector3.zero;
+                while (verts.Contains(pt))      
+                {
+                    temp = (!visited[point2line[pt][0]]) ?
+                        (clats[point2line[pt][0]].line.positionA == pt ? clats[point2line[pt][0]].line.positionB : clats[point2line[pt][0]].line.positionA) :
+                        (clats[point2line[pt][1]].line.positionA == pt ? clats[point2line[pt][1]].line.positionB : clats[point2line[pt][1]].line.positionA);
+                    //获取未访问的一边的另一个点
+                    int ind = (!visited[point2line[pt][0]]) ? point2line[pt][0] : point2line[pt][1];//获取要访问的线段的索引
+                    category[category.Count - 1].Add(clats[ind]);//将访问的线段加入相应的线段集中
+                    vertexs[vertexs.Count - 1].Add(pt);//将点加入相应的点集
+                    visited[ind] = true;//将访问过的线段标记
+                    float dista = Vector3.Distance(pt, pl.pos);//计算点与平面位置的距离
+                    if (dista < min_dist)//取距离最小值，以此确定最内圈的轮廓
+                    {
+                        min_dist = dista;
+                        target = category.Count - 1;
+                    }
+                    verts.Remove(pt);//删除访问过的点
+                    pt= temp;//pt的值变为另一个端点
+                }
+            }
+
+            if (category.Count > 0) {
+                contour = category[target];//将轮廓确定为内圈
+                for (int i = 0; i < vertexs[target].Count; i++)
+                {
+                    result.AddIntersectionPoint(vertexs[target][i]);//将轮廓点加入result里的切割点集，并进行三角剖分
+                }
+                //对轮廓进行三角剖分
+                return Triangulator.Triangulate(vertexs[target], pl.normal, out List<Triangle> tris, region) ? tris : null;
+            }
+            
+            return null;
+        }
+        
         //根据上下部分的三角形列表，截面三角形列表，材质编号，返回上下部分的网格
         private static SlicedHull CreateFrom(SlicedSubmesh[] meshes, List<Triangle> cross, int crossSectionIndex) {
             int submeshCount = meshes.Length;
@@ -271,7 +371,6 @@ namespace EzySlice {
             int upperHullCount = 0;
             int lowerHullCount = 0;
 
-            // get the total amount of upper, lower and intersection counts
             for (int submesh = 0; submesh < submeshCount; submesh++) {
                 upperHullCount += meshes[submesh].upperHull.Count;//所有子网格的上部分三角形数
                 lowerHullCount += meshes[submesh].lowerHull.Count;//所有子网格的下部分三角形数
@@ -284,6 +383,7 @@ namespace EzySlice {
         }
 
         private static Mesh CreateUpperHull(SlicedSubmesh[] mesh, int total, List<Triangle> crossSection, int crossSectionIndex) {
+            //Debug.Log("creating upper");
             return CreateHull(mesh, total, crossSection, crossSectionIndex, true);
         }
 
@@ -291,14 +391,13 @@ namespace EzySlice {
             return CreateHull(mesh, total, crossSection, crossSectionIndex, false);
         }
 
-        /**
-         * Generate a single Mesh HULL of either the UPPER or LOWER hulls. 
-         */
         //根据子网格（只有三角形），此部分总三角形数，截面三角形，截面材质，生成真正的mesh
         private static Mesh CreateHull(SlicedSubmesh[] meshes, int total, List<Triangle> crossSection, int crossIndex, bool isUpper) {
             if (total <= 0) {
                 return null;
             }
+
+            //Debug.Log("Creating HUll");
 
             int submeshCount = meshes.Length;//子网格数
             int crossCount = crossSection != null ? crossSection.Count : 0;//截面三角形面积
@@ -382,7 +481,7 @@ namespace EzySlice {
             }
 
             // generate the cross section required for this particular hull
-            //同上部分，对截面的三角星和点进行处理
+            //同上部分，对截面的三角形和点进行处理
             if (crossSection != null && crossCount > 0) {
                 int[] crossIndices = new int[crossCount * 3];//截面三角形点的索引
 
@@ -484,15 +583,6 @@ namespace EzySlice {
             }
 
             return newMesh;
-        }
-
-        /**
-         * Generate Two Meshes (an upper and lower) cross section from a set of intersection
-         * points and a plane normal. Intersection Points do not have to be in order.
-         */
-//此函数之后要改成调用新截面算法
-        private static List<Triangle> CreateFrom(List<Vector3> intPoints, Vector3 planeNormal, TextureRegion region) {
-            return Triangulator.MonotoneChain(intPoints, planeNormal, out List<Triangle> tris, region) ? tris : null;
         }
     }
 }
