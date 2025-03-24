@@ -39,7 +39,7 @@ public class RuntimeShatterExample : MonoBehaviour {
 
                 // add rigidbodies and colliders
                 foreach (GameObject shatteredObject in shatters) {
-                    shatteredObject.AddComponent<MeshCollider>().convex = true;
+                    shatteredObject.AddComponent<MeshCollider>().convex = false;
                     //shatteredObject.AddComponent<Rigidbody>();
 
                     prevShatters.Add(shatteredObject);

@@ -64,11 +64,7 @@ namespace EzySlice {
             }
         }
 
-        /**
-         * Helper function to accept a gameobject which will transform the plane
-         * approprietly before the slice occurs
-         * See -> Slice(Mesh, Plane) for more info
-         */
+
         //输入待切割物体，切割平面，材质范围大小，截面材质
         //主要是检查工作
         public static SlicedHull Slice(GameObject obj, Plane pl, TextureRegion crossRegion, Material crossMaterial) {
@@ -128,14 +124,49 @@ namespace EzySlice {
             return Slice(mesh, pl, crossRegion, crossIndex);
         }
 
-        /**
-         * Slice the gameobject mesh (if any) using the Plane, which will generate
-         * a maximum of 2 other Meshes.
-         * This function will recalculate new UV coordinates to ensure textures are applied
-         * properly.
-         * Returns null if no intersection has been found or the GameObject does not contain
-         * a valid mesh to cut.
-         */
+        public class LineComparer : IEqualityComparer<Line>
+        {
+            private const float Tolerance = 1e-3f; // 允许的误差
+
+            public bool Equals(Line a, Line b)
+            {
+                return (Equals(a.positionA, b.positionA) && Equals(a.positionB, b.positionB)) ||
+                       (Equals(a.positionA, b.positionB) && Equals(a.positionB, b.positionA));
+            }
+
+            private bool Equals(Vector3 a, Vector3 b)
+            {
+                return Mathf.Abs(a.x - b.x) < Tolerance &&
+                       Mathf.Abs(a.y - b.y) < Tolerance &&
+                       Mathf.Abs(a.z - b.z) < Tolerance;
+            }
+
+            public int GetHashCode(Line obj)
+            {
+                return GetHashCodeUnordered(obj.positionB, obj.positionB);
+            }
+
+            private int GetHashCodeUnordered(Vector3 a, Vector3 b)
+            {
+                unchecked
+                {
+                    int hashA = GetHashCode(a);
+                    int hashB = GetHashCode(b);
+                    return hashA < hashB ? hashA + hashB * 31 : hashB + hashA * 31;
+                }
+            }
+
+            private int GetHashCode(Vector3 obj)
+            {
+                unchecked
+                {
+                    int xHash = Mathf.RoundToInt(obj.x * 1000) * 73856093;
+                    int yHash = Mathf.RoundToInt(obj.y * 1000) * 19349663;
+                    int zHash = Mathf.RoundToInt(obj.z * 1000) * 83492791;
+                    return xHash ^ yHash ^ zHash;
+                }
+            }
+        }
         public static SlicedHull Slice(Mesh sharedMesh, Plane pl, TextureRegion region, int crossIndex) {
             if (sharedMesh == null) {
                 return null;
@@ -168,7 +199,7 @@ namespace EzySlice {
                 List<Triangle> triangles = new List<Triangle>();//三角形的列表
                 List<bool> visited = new List<bool>();
 //此处int[]可能有问题，导致Search出现bug
-                Dictionary<Line, int[]> LineTri = new Dictionary<Line, int[]>();
+                Dictionary<Line, int[]> LineTri = new Dictionary<Line, int[]>(new LineComparer());
 
                 //先对三角形进行遍历，设置好UV等数据后加入三角形列表，方便用点查找
                 for (int index = 0; index < indicesCount; index += 3) {
@@ -201,17 +232,16 @@ namespace EzySlice {
 
                 List<CuttingLineAndTri> contour ;
                 //线段连成轮廓，判断切哪段,将切面三角剖分并设置uv等
-
-                cross = CaculateContour(/*triangles,*/result,pl,region,out contour);
+                cross = CaculateContour(result,pl,region,out contour);
 
                 //将被切的三角形进行标记并切割
                 for (int i = 0; i < contour.Count(); i++)
                 {
+                    //切割函数，对三角形集进行添加和标记操作
+                    Intersector.ReCutting(pl, contour[i], visited, triangles, result);
                     if (contour[i].TriIndex == -1) { continue; }
                     int index = contour[i].TriIndex;
                     visited[index]=true;
-                    //切割函数，对三角形集进行添加和标记操作
-                    Intersector.ReCutting(pl, contour[i] , visited, triangles, result);
                 }
 
                 //建立边-三角形映射
@@ -263,16 +293,16 @@ namespace EzySlice {
                 Intersector.Search(result.upperTri[0], LineTri, triangles, visited, slices[submesh].upperHull);
                 slices[submesh].lowerHull = result.lowerTri;
                 Intersector.Search(result.lowerTri[0], LineTri, triangles, visited, slices[submesh].lowerHull);
-
-                //先切，线段带三角形传进result，线段连成轮廓，判断切哪段
-                //将要切割段的三角形真正切开并创建新三角形，设置uv等，用新三角形替换原三角形
-                //建立边-三角形映射，设置搜索时visited标记
-                //之后开搜，将搜到的两边存到slice.submesh
             }
 
             for (int i = 0; i < slices.Length; i++) {
                 if (slices[i] != null && slices[i].isValid) {
                     //传入上下部分的三角形列表（slice中），截面的交点->截面三角形，平面法线，材质范围，切面材质编号
+                    //for (int x = 0; x < 30;x++) 
+                    //{
+                    //    Debug.Log($"{slices[0].upperHull[x].positionA},{slices[0].upperHull[x].positionB},{slices[0].upperHull[x].positionC}\n" +
+                    //              $"{slices[0].lowerHull[x].positionA},{slices[0].lowerHull[x].positionB},{slices[0].lowerHull[x].positionC}");
+                    //}
                     return CreateFrom(slices, cross/*用算法计算截面三角形*/, crossIndex);//返回切割后的上下网格在slicehull里
                 }
             }
@@ -283,7 +313,7 @@ namespace EzySlice {
 
         class Vector3Comparer : IEqualityComparer<Vector3>
         {
-            private const float Tolerance = 1e-4f; // 允许的误差
+            private const float Tolerance = 1e-3f; // 允许的误差
 
             public bool Equals(Vector3 a, Vector3 b)
             {
@@ -294,10 +324,14 @@ namespace EzySlice {
 
             public int GetHashCode(Vector3 obj)
             {
-                int xHash = Mathf.RoundToInt(obj.x * 1000).GetHashCode();
-                int yHash = Mathf.RoundToInt(obj.y * 1000).GetHashCode();
-                int zHash = Mathf.RoundToInt(obj.z * 1000).GetHashCode();
-                return xHash ^ (yHash << 2) ^ (zHash >> 2);
+                // 乘以大质数防止哈希冲突，并处理负数
+                unchecked
+                {
+                    int xHash = Mathf.RoundToInt(obj.x * 1000) * 73856093;
+                    int yHash = Mathf.RoundToInt(obj.y * 1000) * 19349663;
+                    int zHash = Mathf.RoundToInt(obj.z * 1000) * 83492791;
+                    return xHash ^ yHash ^ zHash;
+                }
             }
         }
 
@@ -352,11 +386,13 @@ namespace EzySlice {
             }
 
             if (category.Count > 0) {
+                //Debug.Log(category[0].Count);
                 contour = category[target];//将轮廓确定为内圈
                 for (int i = 0; i < vertexs[target].Count; i++)
                 {
                     result.AddIntersectionPoint(vertexs[target][i]);//将轮廓点加入result里的切割点集，并进行三角剖分
                 }
+                //Debug.Log(vertexs[0].Count);
                 //对轮廓进行三角剖分
                 return Triangulator.Triangulate(vertexs[target], pl.normal, out List<Triangle> tris, region) ? tris : null;
             }
@@ -397,10 +433,8 @@ namespace EzySlice {
                 return null;
             }
 
-            //Debug.Log("Creating HUll");
-
             int submeshCount = meshes.Length;//子网格数
-            int crossCount = crossSection != null ? crossSection.Count : 0;//截面三角形面积
+            int crossCount = crossSection != null ? crossSection.Count : 0;//截面三角形数量
 
             Mesh newMesh = new Mesh();
             newMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;//选择32位索引，支持超过40亿个顶点

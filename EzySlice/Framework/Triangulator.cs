@@ -172,7 +172,10 @@ namespace EzySlice {
             if (tri.Count != count - 2)
             {
                 vertices.Reverse();
-                Triangulate(vertices, normal, out tri, texRegion);
+                if (!Triangulate(vertices, normal, out tri, texRegion))
+                {
+                    return false; // ±‹√‚Œﬁœﬁµ›πÈ
+                }
             }
             return true;
         }
