@@ -198,8 +198,7 @@ namespace EzySlice {
                 cross.Clear();
                 List<Triangle> triangles = new List<Triangle>();//三角形的列表
                 List<bool> visited = new List<bool>();
-//此处int[]可能有问题，导致Search出现bug
-                Dictionary<Line, int[]> LineTri = new Dictionary<Line, int[]>(new LineComparer());
+                Dictionary<Line, List<int>> LineTri = new Dictionary<Line, List<int>>(new LineComparer());
 
                 //先对三角形进行遍历，设置好UV等数据后加入三角形列表，方便用点查找
                 for (int index = 0; index < indicesCount; index += 3) {
@@ -244,47 +243,31 @@ namespace EzySlice {
                     visited[index]=true;
                 }
 
+                int sum = 0;
+                for(int i = 0; i < visited.Count; i++)
+                {
+                    if (visited[i] == true) sum++;
+                }
+                Debug.Log(contour.Count);
+                Debug.Log(sum);
+
                 //建立边-三角形映射
-                for(int i=0; i< triangles.Count; i++)
+                for (int i = 0; i < triangles.Count; i++)
                 {
                     Triangle tri = triangles[i];
                     Vector3 a = tri.positionA;
                     Vector3 b = tri.positionB;
                     Vector3 c = tri.positionC;
 
-                    Line line1 = new Line(a, b);
-                    Line line2 = new Line(b, c);
-                    Line line3 = new Line(c, a);
+                    Line[] lines = { new Line(a, b), new Line(b, c), new Line(c, a) };
 
-                    if (LineTri.TryGetValue(line1, out var t1))
+                    foreach (Line line in lines)
                     {
-                        int[] n = { t1[0], i };
-                        LineTri[line1] = n;
-                    }
-                    else
-                    {
-                        int[] n = { i };
-                        LineTri[line1] = n;
-                    }
-                    if (LineTri.TryGetValue(line2, out var t2))
-                    {
-                        int[] n = { t2[0], i };
-                        LineTri[line2] = n;
-                    }
-                    else
-                    {
-                        int[] n = { i };
-                        LineTri[line2] = n;
-                    }
-                    if (LineTri.TryGetValue(line3, out var t3))
-                    {
-                        int[] n = { t3[0], i };
-                        LineTri[line3] = n;
-                    }
-                    else
-                    {
-                        int[] n = { i };
-                        LineTri[line3] = n;
+                        if (!LineTri.TryGetValue(line, out var triList))
+                        {
+                            LineTri[line] = new List<int>();
+                        }
+                        LineTri[line].Add(i);
                     }
                 }
 

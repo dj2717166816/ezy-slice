@@ -398,13 +398,6 @@ namespace EzySlice {
                     Triangle tb = new Triangle(a, qa, qb);
                     Triangle tc = new Triangle(a, qb, c);
 
-                    triangles[contour.TriIndex] = ta;
-                    triangles.Add(tb);
-                    triangles.Add(tc);
-                    visited[contour.TriIndex] = true;
-                    visited.Add(true);
-                    visited.Add(true);
-
                     // generate UV coordinates if there is any
                     if (tri.hasUV)
                     {
@@ -450,6 +443,13 @@ namespace EzySlice {
                         tc.SetTangent(pa, pqb, pc);
                     }
 
+                    triangles[contour.TriIndex] = ta;
+                    triangles.Add(tb);
+                    triangles.Add(tc);
+                    visited[contour.TriIndex] = true;
+                    visited.Add(true);
+                    visited.Add(false);
+
                     if (sa == SideOfPlane.UP)
                     {
                         result.upperTri.Add(tb);
@@ -472,13 +472,6 @@ namespace EzySlice {
                     Triangle ta = new Triangle(a, qa, qb);
                     Triangle tb = new Triangle(qa, b, c);
                     Triangle tc = new Triangle(qb, qa, c);
-
-                    triangles[contour.TriIndex] = ta;
-                    triangles.Add(tb);
-                    triangles.Add(tc);
-                    visited[contour.TriIndex] = true;
-                    visited.Add(true);
-                    visited.Add(true);
 
                     // generate UV coordinates if there is any
                     if (tri.hasUV)
@@ -525,6 +518,13 @@ namespace EzySlice {
                         tc.SetTangent(pqb, pqa, pc);
                     }
 
+                    triangles[contour.TriIndex] = ta;
+                    triangles.Add(tb);
+                    triangles.Add(tc);
+                    visited[contour.TriIndex] = true;
+                    visited.Add(false);
+                    visited.Add(true);
+
                     if (sa == SideOfPlane.UP)
                     {
                         result.upperTri.Add(ta);
@@ -547,13 +547,6 @@ namespace EzySlice {
                     Triangle ta = new Triangle(qa, qb, c);
                     Triangle tb = new Triangle(a, qb, qa);
                     Triangle tc = new Triangle(a, b, qb);
-
-                    triangles[contour.TriIndex] = ta;
-                    triangles.Add(tb);
-                    triangles.Add(tc);
-                    visited[contour.TriIndex] = true;
-                    visited.Add(true);
-                    visited.Add(true);
 
                     // generate UV coordinates if there is any
                     if (tri.hasUV)
@@ -599,6 +592,13 @@ namespace EzySlice {
                         tb.SetTangent(pa, pqb, pqa);
                         tc.SetTangent(pa, pb, pqb);
                     }
+
+                    triangles[contour.TriIndex] = ta;
+                    triangles.Add(tb);
+                    triangles.Add(tc);
+                    visited[contour.TriIndex] = true;
+                    visited.Add(true);
+                    visited.Add(false);
 
                     if (sa == SideOfPlane.UP)
                     {
@@ -825,13 +825,6 @@ namespace EzySlice {
                     Triangle tb = new Triangle(a, qa, qb);
                     Triangle tc = new Triangle(a, qb, c);
 
-                    triangles[contour.TriIndex] = ta;
-                    triangles.Add(tb);
-                    triangles.Add(tc);
-                    visited[contour.TriIndex] = true;
-                    visited.Add(true);
-                    visited.Add(true);
-
                     // generate UV coordinates if there is any
                     if (tri.hasUV)
                     {
@@ -877,6 +870,13 @@ namespace EzySlice {
                         tc.SetTangent(pa, pqb, pc);
                     }
 
+                    triangles[contour.TriIndex] = ta;
+                    triangles.Add(tb);
+                    triangles.Add(tc);
+                    visited[contour.TriIndex] = true;
+                    visited.Add(true);
+                    visited.Add(false);
+
                     if (sa == SideOfPlane.UP)
                     {
                         result.upperTri.Add(tb);
@@ -899,13 +899,6 @@ namespace EzySlice {
                     Triangle ta = new Triangle(a, qa, qb);
                     Triangle tb = new Triangle(qa, b, c);
                     Triangle tc = new Triangle(qb, qa, c);
-
-                    triangles[contour.TriIndex] = ta;
-                    triangles.Add(tb);
-                    triangles.Add(tc);
-                    visited[contour.TriIndex] = true;
-                    visited.Add(true);
-                    visited.Add(true);
                     
                     // generate UV coordinates if there is any
                     if (tri.hasUV)
@@ -949,6 +942,14 @@ namespace EzySlice {
                         tb.SetTangent(pqa, pb, pc);
                         tc.SetTangent(pqb, pqa, pc);
                     }
+
+                    triangles[contour.TriIndex] = ta;
+                    triangles.Add(tb);
+                    triangles.Add(tc);
+                    visited[contour.TriIndex] = true;
+                    visited.Add(false);
+                    visited.Add(true);
+
                     if (sa == SideOfPlane.UP)
                     {
                         result.upperTri.Add(ta);
@@ -971,13 +972,6 @@ namespace EzySlice {
                     Triangle ta = new Triangle(qa, qb, c);
                     Triangle tb = new Triangle(a, qb, qa);
                     Triangle tc = new Triangle(a, b, qb);
-
-                    triangles[contour.TriIndex] = ta;
-                    triangles.Add(tb);
-                    triangles.Add(tc);
-                    visited[contour.TriIndex] = true;
-                    visited.Add(true);
-                    visited.Add(true);
 
                     // generate UV coordinates if there is any
                     if (tri.hasUV)
@@ -1024,6 +1018,13 @@ namespace EzySlice {
                         tc.SetTangent(pa, pb, pqb);
                     }
 
+                    triangles[contour.TriIndex] = ta;
+                    triangles.Add(tb);
+                    triangles.Add(tc);
+                    visited[contour.TriIndex] = true;
+                    visited.Add(true);
+                    visited.Add(false);
+
                     if (sa == SideOfPlane.UP)
                     {
                         result.upperTri.Add(tb);
@@ -1040,7 +1041,7 @@ namespace EzySlice {
             }
         }
 
-        public static void Search(Triangle tri, Dictionary<Line, int[]> LineTri, List<Triangle> triangles, List<bool> visited, List<Triangle> output)
+        public static void Search(Triangle tri, Dictionary<Line, List<int>> LineTri, List<Triangle> triangles, List<bool> visited, List<Triangle> output)
         {
             //return;
             Vector3 a = tri.positionA;
