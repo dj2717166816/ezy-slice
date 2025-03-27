@@ -36,6 +36,8 @@ namespace EzySlice {
         private Vector4 m_tan_b;
         private Vector4 m_tan_c;
 
+        public int index;
+
         public Triangle(Vector3 posa,
             Vector3 posb,
             Vector3 posc) {
@@ -57,6 +59,8 @@ namespace EzySlice {
             this.m_tan_a = Vector4.zero;
             this.m_tan_b = Vector4.zero;
             this.m_tan_c = Vector4.zero;
+
+            index = -1;
         }
 
         public Vector3 positionA {
@@ -143,35 +147,35 @@ namespace EzySlice {
             get { return this.m_tan_c; }
         }
 
-        public static bool AreTrianglesEqual(Triangle tri1, Triangle tri2)
-        {
-            Vector3[] p1 = { tri1.positionA, tri1.positionB, tri1.positionC };
-            Vector3[] p2 = { tri2.positionA, tri2.positionB, tri2.positionC };
-            return AreTrianglesEqual(p1,p2);
-        }
+        //public static bool AreTrianglesEqual(Triangle tri1, Triangle tri2)
+        //{
+        //    Vector3[] p1 = { tri1.positionA, tri1.positionB, tri1.positionC };
+        //    Vector3[] p2 = { tri2.positionA, tri2.positionB, tri2.positionC };
+        //    return AreTrianglesEqual(p1,p2);
+        //}
 
-        public static bool AreTrianglesEqual(Vector3[] tri1, Vector3[] tri2)
-        {
-            if (tri1.Length != 3 || tri2.Length != 3) return false;
+        //public static bool AreTrianglesEqual(Vector3[] tri1, Vector3[] tri2)
+        //{
+        //    if (tri1.Length != 3 || tri2.Length != 3) return false;
 
-            // 对两个三角形的顶点排序（按坐标值排序）
-            var sortedTri1 = tri1.OrderBy(v => v.x).ThenBy(v => v.y).ThenBy(v => v.z).ToArray();
-            var sortedTri2 = tri2.OrderBy(v => v.x).ThenBy(v => v.y).ThenBy(v => v.z).ToArray();
+        //    // 对两个三角形的顶点排序（按坐标值排序）
+        //    var sortedTri1 = tri1.OrderBy(v => v.x).ThenBy(v => v.y).ThenBy(v => v.z).ToArray();
+        //    var sortedTri2 = tri2.OrderBy(v => v.x).ThenBy(v => v.y).ThenBy(v => v.z).ToArray();
 
-            // 逐个比较顶点坐标，考虑浮点误差
-            for (int i = 0; i < 3; i++)
-            {
-                if (!AreVectorsEqual(sortedTri1[i], sortedTri2[i])) return false;
-            }
+        //    // 逐个比较顶点坐标，考虑浮点误差
+        //    for (int i = 0; i < 3; i++)
+        //    {
+        //        if (!AreVectorsEqual(sortedTri1[i], sortedTri2[i])) return false;
+        //    }
 
-            return true;
-        }
+        //    return true;
+        //}
 
-        private static bool AreVectorsEqual(Vector3 v1, Vector3 v2)
-        {
-            const float Tolerance = 0.0001f; // 允许的误差范围
-            return Vector3.SqrMagnitude(v1 - v2) < Tolerance * Tolerance;
-        }
+        //private static bool AreVectorsEqual(Vector3 v1, Vector3 v2)
+        //{
+        //    const float Tolerance = 1e-3f; // 允许的误差范围
+        //    return Vector3.SqrMagnitude(v1 - v2) < Tolerance * Tolerance;
+        //}
 
         /**
          * Compute and set the tangents of this triangle

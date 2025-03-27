@@ -7,9 +7,10 @@ namespace EzySlice {
         private readonly Vector3 m_pos_a;
         private readonly Vector3 m_pos_b;
         private readonly bool flip;
-        public Line(Vector3 a, Vector3 b) {
-            // 确保边是无向的：总是让 a 是更小的点
-            if (a.GetHashCode() < b.GetHashCode())
+        public Line(Vector3 a, Vector3 b)
+        {
+            // 通过坐标大小比较来保证无向性
+            if (a.x < b.x || (a.x == b.x && a.y < b.y) || (a.x == b.x && a.y == b.y && a.z < b.z))
             {
                 this.m_pos_a = a;
                 this.m_pos_b = b;
@@ -22,6 +23,7 @@ namespace EzySlice {
                 this.flip = true;
             }
         }
+
         public bool Equals(Line other)
         {
             return (m_pos_a == other.m_pos_a && m_pos_b == other.m_pos_b);

@@ -4,6 +4,7 @@ using System.Linq;
 using UnityEngine;
 using EzySlice;
 using UnityEditor;
+using System;
 
 namespace EzySlice {
 
@@ -207,7 +208,7 @@ namespace EzySlice {
                     int i2 = indices[index + 2];
                     //获取索引后从点集找到相应的点组成Triangle
                     Triangle newTri = new Triangle(verts[i0], verts[i1], verts[i2]);
-
+                    newTri.index = index/3;
                     // generate UV if available
                     if (genUV) {
                         newTri.SetUV(uv[i0], uv[i1], uv[i2]);
@@ -248,8 +249,6 @@ namespace EzySlice {
                 {
                     if (visited[i] == true) sum++;
                 }
-                Debug.Log(contour.Count);
-                Debug.Log(sum);
 
                 //建立边-三角形映射
                 for (int i = 0; i < triangles.Count; i++)
@@ -271,21 +270,27 @@ namespace EzySlice {
                     }
                 }
 
+                //foreach (KeyValuePair<Line, List<int>> p in LineTri)
+                //{
+                //    if (p.Value.Count!=2)
+                //    {
+                //        Debug.Log($"{p.Key.positionA}  {p.Key.positionB}");
+                //        Debug.Log(p.Value.Count);
+                //    }
+                //}
+
                 //分别搜索两部分
                 slices[submesh].upperHull = result.upperTri;
-                Intersector.Search(result.upperTri[0], LineTri, triangles, visited, slices[submesh].upperHull);
+                TriangleSearcher searcher1 = new TriangleSearcher(result.upperTri[0], LineTri, triangles, visited, slices[submesh].upperHull);
+                searcher1.StartSearch();
                 slices[submesh].lowerHull = result.lowerTri;
-                Intersector.Search(result.lowerTri[0], LineTri, triangles, visited, slices[submesh].lowerHull);
+                TriangleSearcher searcher2 = new TriangleSearcher(result.lowerTri[0], LineTri, triangles, visited, slices[submesh].lowerHull);
+                searcher2.StartSearch();
             }
 
             for (int i = 0; i < slices.Length; i++) {
                 if (slices[i] != null && slices[i].isValid) {
-                    //传入上下部分的三角形列表（slice中），截面的交点->截面三角形，平面法线，材质范围，切面材质编号
-                    //for (int x = 0; x < 30;x++) 
-                    //{
-                    //    Debug.Log($"{slices[0].upperHull[x].positionA},{slices[0].upperHull[x].positionB},{slices[0].upperHull[x].positionC}\n" +
-                    //              $"{slices[0].lowerHull[x].positionA},{slices[0].lowerHull[x].positionB},{slices[0].lowerHull[x].positionC}");
-                    //}
+                    //传入上下部分的三角形列表（slice中），截面的交点->截面三角形，切面材质编号
                     return CreateFrom(slices, cross/*用算法计算截面三角形*/, crossIndex);//返回切割后的上下网格在slicehull里
                 }
             }
@@ -300,22 +305,20 @@ namespace EzySlice {
 
             public bool Equals(Vector3 a, Vector3 b)
             {
-                return Mathf.Abs(a.x - b.x) < Tolerance &&
+                return (Mathf.Abs(a.x - b.x) < Tolerance &&
                        Mathf.Abs(a.y - b.y) < Tolerance &&
-                       Mathf.Abs(a.z - b.z) < Tolerance;
+                       Mathf.Abs(a.z - b.z) < Tolerance);
             }
 
             public int GetHashCode(Vector3 obj)
             {
-                // 乘以大质数防止哈希冲突，并处理负数
-                unchecked
-                {
-                    int xHash = Mathf.RoundToInt(obj.x * 1000) * 73856093;
-                    int yHash = Mathf.RoundToInt(obj.y * 1000) * 19349663;
-                    int zHash = Mathf.RoundToInt(obj.z * 1000) * 83492791;
-                    return xHash ^ yHash ^ zHash;
-                }
+                long xHash = Mathf.RoundToInt(obj.x * 1000); // 保留3位小数
+                long yHash = Mathf.RoundToInt(obj.y * 1000);
+                long zHash = Mathf.RoundToInt(obj.z * 1000);
+
+                return HashCode.Combine(xHash, yHash, zHash);
             }
+
         }
 
         private static  List<Triangle> CaculateContour(IntersectionResult result, Plane pl, TextureRegion region, out List<CuttingLineAndTri> contour)
@@ -328,10 +331,12 @@ namespace EzySlice {
 
             for(int i = 0; i < clats.Count(); i++)//遍历线段，建立点到线段索引的映射，并将所有点加入点集
             {
-                if (!point2line.TryGetValue(clats[i].line.positionA, out List<int> value1)) { point2line.Add(clats[i].line.positionA, new List<int>()); verts.Add(clats[i].line.positionA); }
+                Vector3 p = Vector3.zero;
+                if (!point2line.TryGetValue(clats[i].line.positionA, out List<int> value1)) { point2line.Add(clats[i].line.positionA, new List<int>()); verts.Add(clats[i].line.positionA); p = clats[i].line.positionA; }
                 point2line[clats[i].line.positionA].Add(i);
-                if (!point2line.TryGetValue(clats[i].line.positionB, out List<int> value2)) { point2line.Add(clats[i].line.positionB, new List<int>()); verts.Add(clats[i].line.positionB); }
-                point2line[clats[i].line.positionB].Add(i); 
+                if (!point2line.TryGetValue(clats[i].line.positionB, out List<int> value2)) { point2line.Add(clats[i].line.positionB, new List<int>()); verts.Add(clats[i].line.positionB); p = clats[i].line.positionB; }
+                point2line[clats[i].line.positionB].Add(i);
+                Debug.Log($"{verts.Count} {p} {new Vector3Comparer().GetHashCode(p)}");
             }
 
             bool[] visited = new bool[clats.Count()];
@@ -342,13 +347,13 @@ namespace EzySlice {
 
             while (verts.Count() > 0)
             {
-                List<CuttingLineAndTri> tobeadd = new List<CuttingLineAndTri>();
-                category.Add(tobeadd);
+                category.Add(new List<CuttingLineAndTri>());
                 vertexs.Add(new List<Vector3>());
                 Vector3 pt = verts.First();
                 Vector3 temp = Vector3.zero;
                 while (verts.Contains(pt))      
                 {
+                    
                     temp = (!visited[point2line[pt][0]]) ?
                         (clats[point2line[pt][0]].line.positionA == pt ? clats[point2line[pt][0]].line.positionB : clats[point2line[pt][0]].line.positionA) :
                         (clats[point2line[pt][1]].line.positionA == pt ? clats[point2line[pt][1]].line.positionB : clats[point2line[pt][1]].line.positionA);

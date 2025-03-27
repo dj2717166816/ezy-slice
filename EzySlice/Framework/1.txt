@@ -1,0 +1,105 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+public class CuttingPlane : MonoBehaviour
+{
+    public Plane cuttingPlane;
+    public List<Vector3> intersectionPoints = new List<Vector3>();
+    public List<Edge> edges = new List<Edge>();
+    public List<List<Vector3>> contours = new List<List<Vector3>>();
+
+    public struct Edge
+    {
+        public Vector3 PointA;
+        public Vector3 PointB;
+
+        public Edge(Vector3 a, Vector3 b)
+        {
+            PointA = a;
+            PointB = b;
+        }
+    }
+
+    public void ComputeIntersection(Mesh mesh)
+    {
+        intersectionPoints.Clear();
+        edges.Clear();
+
+        Vector3[] vertices = mesh.vertices;
+        int[] triangles = mesh.triangles;
+
+        for (int i = 0; i < triangles.Length; i += 3)
+        {
+            Vector3 v0 = transform.TransformPoint(vertices[triangles[i]]);
+            Vector3 v1 = transform.TransformPoint(vertices[triangles[i + 1]]);
+            Vector3 v2 = transform.TransformPoint(vertices[triangles[i + 2]]);
+
+            FindIntersection(v0, v1);
+            FindIntersection(v1, v2);
+            FindIntersection(v2, v0);
+        }
+
+        ExtractContours();
+    }
+
+    private void FindIntersection(Vector3 a, Vector3 b)
+    {
+        if (cuttingPlane.Raycast(new Ray(a, b - a), out float enter))
+        {
+            Vector3 intersection = a + (b - a).normalized * enter;
+            intersectionPoints.Add(intersection);
+            edges.Add(new Edge(a, b));
+        }
+    }
+
+    private void ExtractContours()
+    {
+        contours.Clear();
+        HashSet<Edge> visitedEdges = new HashSet<Edge>();
+
+        foreach (var edge in edges)
+        {
+            if (visitedEdges.Contains(edge))
+                continue;
+
+            List<Vector3> contour = new List<Vector3>();
+            Edge currentEdge = edge;
+
+            do
+            {
+                contour.Add(currentEdge.PointA);
+                visitedEdges.Add(currentEdge);
+
+                currentEdge = FindNextEdge(currentEdge.PointB, visitedEdges);
+            }
+            while (currentEdge.PointB != edge.PointA && currentEdge.PointB != Vector3.zero);
+
+            contour.Add(edge.PointA); 
+            contours.Add(contour);
+        }
+    }
+
+    private Edge FindNextEdge(Vector3 point, HashSet<Edge> visitedEdges)
+    {
+        foreach (var edge in edges)
+        {
+            if (!visitedEdges.Contains(edge) && (edge.PointA == point || edge.PointB == point))
+            {
+                return edge;
+            }
+        }
+        return new Edge(Vector3.zero, Vector3.zero);
+    }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.red;
+        foreach (var contour in contours)
+        {
+            for (int i = 0; i < contour.Count - 1; i++)
+            {
+                Gizmos.DrawLine(contour[i], contour[i + 1]);
+            }
+        }
+    }
+}

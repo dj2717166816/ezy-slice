@@ -199,7 +199,9 @@ namespace EzySlice {
 
                     //替换原来的三角形，并添加新三角形，对新三角形进行标记
                     triangles[contour.TriIndex] = ta;
+                    ta.index = contour.TriIndex;
                     triangles.Add(tb);
+                    tb.index = triangles.Count-1;
                     visited[contour.TriIndex] = true;
                     visited.Add(true);
 
@@ -265,7 +267,9 @@ namespace EzySlice {
                     Triangle tb = new Triangle(qa, b, c);
 
                     triangles[contour.TriIndex] = ta;
+                    ta.index = contour.TriIndex;
                     triangles.Add(tb);
+                    tb.index = triangles.Count - 1;
                     visited[contour.TriIndex] = true;
                     visited.Add(true);
 
@@ -331,7 +335,9 @@ namespace EzySlice {
                     Triangle tb = new Triangle(qa, b, c);
 
                     triangles[contour.TriIndex] = ta;
+                    ta.index = contour.TriIndex;
                     triangles.Add(tb);
+                    tb.index = triangles.Count-1;
                     visited[contour.TriIndex] = true;
                     visited.Add(true);
 
@@ -444,8 +450,11 @@ namespace EzySlice {
                     }
 
                     triangles[contour.TriIndex] = ta;
+                    ta.index = contour.TriIndex;
                     triangles.Add(tb);
+                    tb.index = triangles.Count - 1;
                     triangles.Add(tc);
+                    tc.index = triangles.Count - 1;
                     visited[contour.TriIndex] = true;
                     visited.Add(true);
                     visited.Add(false);
@@ -519,8 +528,11 @@ namespace EzySlice {
                     }
 
                     triangles[contour.TriIndex] = ta;
+                    ta.index = contour.TriIndex;
                     triangles.Add(tb);
+                    tb.index = triangles.Count - 1;
                     triangles.Add(tc);
+                    tc.index = triangles.Count - 1;
                     visited[contour.TriIndex] = true;
                     visited.Add(false);
                     visited.Add(true);
@@ -594,8 +606,11 @@ namespace EzySlice {
                     }
 
                     triangles[contour.TriIndex] = ta;
+                    ta.index = contour.TriIndex;
                     triangles.Add(tb);
+                    tb.index = triangles.Count - 1;
                     triangles.Add(tc);
+                    tc.index = triangles.Count - 1;
                     visited[contour.TriIndex] = true;
                     visited.Add(true);
                     visited.Add(false);
@@ -626,7 +641,9 @@ namespace EzySlice {
                     Triangle tb = new Triangle(a, qa, c);
 
                     triangles[contour.TriIndex] = ta;
+                    ta.index =contour.TriIndex;
                     triangles.Add(tb);
+                    tb.index =triangles.Count - 1;
                     visited[contour.TriIndex] = true;
                     visited.Add(true);
 
@@ -692,7 +709,9 @@ namespace EzySlice {
                     Triangle tb = new Triangle(qa, b, c);
 
                     triangles[contour.TriIndex] = ta;
+                    ta.index = contour.TriIndex;
                     triangles.Add(tb);
+                    tb.index = triangles.Count - 1;
                     visited[contour.TriIndex] = true;
                     visited.Add(true);
 
@@ -758,7 +777,9 @@ namespace EzySlice {
                     Triangle tb = new Triangle(qa, b, c);
 
                     triangles[contour.TriIndex] = ta;
+                    ta.index = contour.TriIndex;
                     triangles.Add(tb);
+                    tb.index = triangles.Count - 1;
                     visited[contour.TriIndex] = true;
                     visited.Add(true);
 
@@ -871,8 +892,11 @@ namespace EzySlice {
                     }
 
                     triangles[contour.TriIndex] = ta;
+                    ta.index = contour.TriIndex;
                     triangles.Add(tb);
+                    tb.index = triangles.Count - 1;
                     triangles.Add(tc);
+                    tc.index = triangles.Count - 1;
                     visited[contour.TriIndex] = true;
                     visited.Add(true);
                     visited.Add(false);
@@ -944,8 +968,11 @@ namespace EzySlice {
                     }
 
                     triangles[contour.TriIndex] = ta;
+                    ta.index = contour.TriIndex;
                     triangles.Add(tb);
+                    tb.index = triangles.Count - 1;
                     triangles.Add(tc);
+                    tc.index = triangles.Count - 1;
                     visited[contour.TriIndex] = true;
                     visited.Add(false);
                     visited.Add(true);
@@ -1019,8 +1046,11 @@ namespace EzySlice {
                     }
 
                     triangles[contour.TriIndex] = ta;
+                    ta.index = contour.TriIndex;
                     triangles.Add(tb);
+                    tb.index = triangles.Count - 1;
                     triangles.Add(tc);
+                    tc.index = triangles.Count - 1;
                     visited[contour.TriIndex] = true;
                     visited.Add(true);
                     visited.Add(false);
@@ -1036,40 +1066,6 @@ namespace EzySlice {
                         result.upperTri.Add(ta);
                         result.lowerTri.Add(tb);
                         //result.lowerTri.Add(tc);
-                    }
-                }
-            }
-        }
-
-        public static void Search(Triangle tri, Dictionary<Line, List<int>> LineTri, List<Triangle> triangles, List<bool> visited, List<Triangle> output)
-        {
-            //return;
-            Vector3 a = tri.positionA;
-            Vector3 b = tri.positionB;
-            Vector3 c = tri.positionC;
-            Line line1 = new Line(a, b);
-            Line line2 = new Line(b, c);
-            Line line3 = new Line(c, a);
-            Line[] lines = { line1, line2, line3 };
-            for (int i = 0; i < lines.Length; i++)
-            {
-                Line line = lines[i];
-                if (Triangle.AreTrianglesEqual(triangles[LineTri[line][0]], tri))
-                {
-                    if (!visited[LineTri[line][1]])
-                    {
-                        visited[LineTri[line][1]] = true;
-                        output.Add(triangles[LineTri[line][1]]);
-                        Search(triangles[LineTri[line][1]], LineTri, triangles, visited, output);
-                    }
-                }
-                else
-                {
-                    if (!visited[LineTri[line][0]])
-                    {
-                        visited[LineTri[line][0]] = true;
-                        output.Add(triangles[LineTri[line][0]]);
-                        Search(triangles[LineTri[line][0]], LineTri, triangles, visited, output);
                     }
                 }
             }
