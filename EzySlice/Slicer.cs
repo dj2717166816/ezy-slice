@@ -5,12 +5,10 @@ using UnityEngine;
 using EzySlice;
 using UnityEditor;
 using System;
+using Ezyslice;
 
 namespace EzySlice {
 
-    /**
-     * Contains methods for slicing GameObjects
-     */
     public sealed class Slicer {
 
         /**
@@ -125,9 +123,18 @@ namespace EzySlice {
             return Slice(mesh, pl, crossRegion, crossIndex);
         }
 
+        public static bool is_equal(Vector3D a, Vector3D b)
+        {
+            double Toler = 1e-4f;
+
+            return Math.Abs(a.x - b.x) < Toler &&
+                   Math.Abs(a.y - b.y) < Toler &&
+                   Math.Abs(a.z - b.z) < Toler;
+        } 
+
         public class LineComparer : IEqualityComparer<Line>
         {
-            private const float Tolerance = 1e-3f; // 允许的误差
+            private const double Tolerance = 1e-4f; // 允许的误差
 
             public bool Equals(Line a, Line b)
             {
@@ -135,11 +142,11 @@ namespace EzySlice {
                        (Equals(a.positionA, b.positionB) && Equals(a.positionB, b.positionA));
             }
 
-            private bool Equals(Vector3 a, Vector3 b)
+            private bool Equals(Vector3D a, Vector3D b)
             {
-                return Mathf.Abs(a.x - b.x) < Tolerance &&
-                       Mathf.Abs(a.y - b.y) < Tolerance &&
-                       Mathf.Abs(a.z - b.z) < Tolerance;
+                return Math.Abs(a.x - b.x) < Tolerance &&
+                       Math.Abs(a.y - b.y) < Tolerance &&
+                       Math.Abs(a.z - b.z) < Tolerance;
             }
 
             public int GetHashCode(Line obj)
@@ -147,7 +154,7 @@ namespace EzySlice {
                 return GetHashCodeUnordered(obj.positionB, obj.positionB);
             }
 
-            private int GetHashCodeUnordered(Vector3 a, Vector3 b)
+            private int GetHashCodeUnordered(Vector3D a, Vector3D b)
             {
                 unchecked
                 {
@@ -157,13 +164,13 @@ namespace EzySlice {
                 }
             }
 
-            private int GetHashCode(Vector3 obj)
+            private int GetHashCode(Vector3D obj)
             {
                 unchecked
                 {
-                    int xHash = Mathf.RoundToInt(obj.x * 1000) * 73856093;
-                    int yHash = Mathf.RoundToInt(obj.y * 1000) * 19349663;
-                    int zHash = Mathf.RoundToInt(obj.z * 1000) * 83492791;
+                    int xHash = (int)(obj.x * 10000) * 73856093;
+                    int yHash = (int)(obj.y * 10000) * 19349663;
+                    int zHash = (int)(obj.z * 10000) * 83492791;
                     return xHash ^ yHash ^ zHash;
                 }
             }
@@ -174,10 +181,22 @@ namespace EzySlice {
             }
 
 
-            Vector3[] verts = sharedMesh.vertices;
+            Vector3[] vertexs = sharedMesh.vertices;
             Vector2[] uv = sharedMesh.uv;
-            Vector3[] norm = sharedMesh.normals;
+            Vector3[] normS = sharedMesh.normals;
             Vector4[] tan = sharedMesh.tangents;
+            Vector3D[] verts = new Vector3D[vertexs.Length];
+            Vector3D[] norm = new Vector3D[normS.Length];
+
+            for (int i = 0; i < vertexs.Length; i++)
+            {
+                verts[i] = new Vector3D(vertexs[i]);
+            }
+
+            for (int i = 0; i < normS.Length; i++)
+            {
+                norm[i] = new Vector3D(normS[i]);
+            }
 
             int submeshCount = sharedMesh.subMeshCount;
 
@@ -230,6 +249,59 @@ namespace EzySlice {
                     Intersector.Cutting(pl,newTri,triangles.Count-1,result);
                 }
 
+                //对clats中相同的点的标号进行统一
+                for(int i = 0; i < result.intersectLines.Count; i++)
+                {
+                    if (result.intersectLines[i].line.i.Count != 2)
+                    {
+                        for(int j = i+1; j < result.intersectLines.Count; j++)
+                        {
+                            if (result.intersectLines[j].line.i.Count != 2 && is_equal(result.intersectLines[i].line.positionA, result.intersectLines[j].line.positionA))
+                            {
+                                int min = Math.Min(result.intersectLines[i].line.i[0], result.intersectLines[j].line.i[0]);
+                                result.intersectLines[i].line.i.Add(min);
+                                result.intersectLines[j].line.i.Add(min);
+                                break;
+                            }
+                            if (result.intersectLines[j].line.j.Count != 2 && is_equal(result.intersectLines[i].line.positionA, result.intersectLines[j].line.positionB))
+                            {
+                                int min = Math.Min(result.intersectLines[i].line.i[0], result.intersectLines[j].line.j[0]);
+                                result.intersectLines[i].line.i.Add(min);
+                                result.intersectLines[j].line.j.Add(min);
+                                break;
+                            }
+                        }
+                    }
+                    if (result.intersectLines[i].line.j.Count != 2)
+                    {
+                        for (int j = i + 1; j < result.intersectLines.Count; j++)
+                        {
+                            if (result.intersectLines[j].line.i.Count != 2 && is_equal(result.intersectLines[i].line.positionB, result.intersectLines[j].line.positionA))
+                            {
+                                int min = Math.Min(result.intersectLines[i].line.j[0], result.intersectLines[j].line.i[0]);
+                                result.intersectLines[i].line.j.Add(min);
+                                result.intersectLines[j].line.i.Add(min);
+                                break;
+                            }
+                            if (result.intersectLines[j].line.j.Count != 2 && is_equal(result.intersectLines[i].line.positionB, result.intersectLines[j].line.positionB))
+                            {
+                                int min = Math.Min(result.intersectLines[i].line.j[0], result.intersectLines[j].line.j[0]);
+                                result.intersectLines[i].line.j.Add(min);
+                                result.intersectLines[j].line.j.Add(min);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                for(int i = 0; i < result.intersectLines.Count; i++)
+                {
+                    if (result.intersectLines[i].line.i.Count!=2 || result.intersectLines[i].line.i.Count != 2)
+                    {
+                        Debug.Log($"{result.intersectLines[i].line.i.Count} {result.intersectLines[i].line.j.Count}");
+                    }
+                }
+
                 List<CuttingLineAndTri> contour ;
                 //线段连成轮廓，判断切哪段,将切面三角剖分并设置uv等
                 cross = CaculateContour(result,pl,region,out contour);
@@ -254,9 +326,9 @@ namespace EzySlice {
                 for (int i = 0; i < triangles.Count; i++)
                 {
                     Triangle tri = triangles[i];
-                    Vector3 a = tri.positionA;
-                    Vector3 b = tri.positionB;
-                    Vector3 c = tri.positionC;
+                    Vector3D a = tri.positionA;
+                    Vector3D b = tri.positionB;
+                    Vector3D c = tri.positionC;
 
                     Line[] lines = { new Line(a, b), new Line(b, c), new Line(c, a) };
 
@@ -269,15 +341,6 @@ namespace EzySlice {
                         LineTri[line].Add(i);
                     }
                 }
-
-                //foreach (KeyValuePair<Line, List<int>> p in LineTri)
-                //{
-                //    if (p.Value.Count!=2)
-                //    {
-                //        Debug.Log($"{p.Key.positionA}  {p.Key.positionB}");
-                //        Debug.Log(p.Value.Count);
-                //    }
-                //}
 
                 //分别搜索两部分
                 slices[submesh].upperHull = result.upperTri;
@@ -299,70 +362,49 @@ namespace EzySlice {
             return null;
         }
 
-        class Vector3Comparer : IEqualityComparer<Vector3>
-        {
-            private const float Tolerance = 1e-3f; // 允许的误差
-
-            public bool Equals(Vector3 a, Vector3 b)
-            {
-                return (Mathf.Abs(a.x - b.x) < Tolerance &&
-                       Mathf.Abs(a.y - b.y) < Tolerance &&
-                       Mathf.Abs(a.z - b.z) < Tolerance);
-            }
-
-            public int GetHashCode(Vector3 obj)
-            {
-                long xHash = Mathf.RoundToInt(obj.x * 1000); // 保留3位小数
-                long yHash = Mathf.RoundToInt(obj.y * 1000);
-                long zHash = Mathf.RoundToInt(obj.z * 1000);
-
-                return HashCode.Combine(xHash, yHash, zHash);
-            }
-
-        }
-
         private static  List<Triangle> CaculateContour(IntersectionResult result, Plane pl, TextureRegion region, out List<CuttingLineAndTri> contour)
         {
 
             List<CuttingLineAndTri> clats = result.intersectLines;//所有的线段
-            HashSet<Vector3> verts = new HashSet<Vector3>(new Vector3Comparer());
+            HashSet<int> verts = new HashSet<int>();
             contour =new List<CuttingLineAndTri>();//最终的轮廓
-            Dictionary<Vector3, List<int>> point2line = new Dictionary<Vector3, List<int>>(new Vector3Comparer());//点到线段的映射
+            Dictionary<int, List<int>> point2line = new Dictionary<int, List<int>>();//点到线段的映射
 
             for(int i = 0; i < clats.Count(); i++)//遍历线段，建立点到线段索引的映射，并将所有点加入点集
             {
-                Vector3 p = Vector3.zero;
-                if (!point2line.TryGetValue(clats[i].line.positionA, out List<int> value1)) { point2line.Add(clats[i].line.positionA, new List<int>()); verts.Add(clats[i].line.positionA); p = clats[i].line.positionA; }
-                point2line[clats[i].line.positionA].Add(i);
-                if (!point2line.TryGetValue(clats[i].line.positionB, out List<int> value2)) { point2line.Add(clats[i].line.positionB, new List<int>()); verts.Add(clats[i].line.positionB); p = clats[i].line.positionB; }
-                point2line[clats[i].line.positionB].Add(i);
-                Debug.Log($"{verts.Count} {p} {new Vector3Comparer().GetHashCode(p)}");
+                //Debug.Log($"{verts.Count} {clats[i].line.i} {clats[i].line.j}");
+                if (!point2line.TryGetValue(clats[i].line.i[1], out List<int> value1)) { point2line.Add(clats[i].line.i[1], new List<int>()); verts.Add(clats[i].line.i[1]); }
+                point2line[clats[i].line.i[1]].Add(i);
+                if (!point2line.TryGetValue(clats[i].line.j[1], out List<int> value2)) { point2line.Add(clats[i].line.j[1], new List<int>()); verts.Add(clats[i].line.j[1]); }
+                point2line[clats[i].line.j[1]].Add(i);
             }
 
             bool[] visited = new bool[clats.Count()];
             List<List<CuttingLineAndTri>> category =new List<List<CuttingLineAndTri>>();
-            List<List<Vector3>> vertexs = new List<List<Vector3>>();
-            float min_dist = float.MaxValue;
+            List<List<Vector3D>> vertexs = new List<List<Vector3D>>();
+            double min_dist = double.MaxValue;
             int target = 0;
 
             while (verts.Count() > 0)
             {
                 category.Add(new List<CuttingLineAndTri>());
-                vertexs.Add(new List<Vector3>());
-                Vector3 pt = verts.First();
-                Vector3 temp = Vector3.zero;
+                vertexs.Add(new List<Vector3D>());
+                int pt = verts.First();
+                int temp = -1;
                 while (verts.Contains(pt))      
                 {
-                    
                     temp = (!visited[point2line[pt][0]]) ?
-                        (clats[point2line[pt][0]].line.positionA == pt ? clats[point2line[pt][0]].line.positionB : clats[point2line[pt][0]].line.positionA) :
-                        (clats[point2line[pt][1]].line.positionA == pt ? clats[point2line[pt][1]].line.positionB : clats[point2line[pt][1]].line.positionA);
+                        (clats[point2line[pt][0]].line.i[1] == pt ? clats[point2line[pt][0]].line.j[1] : clats[point2line[pt][0]].line.i[1]) :
+                        (clats[point2line[pt][1]].line.i[1] == pt ? clats[point2line[pt][1]].line.j[1] : clats[point2line[pt][1]].line.i[1]);
                     //获取未访问的一边的另一个点
                     int ind = (!visited[point2line[pt][0]]) ? point2line[pt][0] : point2line[pt][1];//获取要访问的线段的索引
                     category[category.Count - 1].Add(clats[ind]);//将访问的线段加入相应的线段集中
-                    vertexs[vertexs.Count - 1].Add(pt);//将点加入相应的点集
+
+                    Vector3D p = clats[ind].line.i[1] == pt ? clats[ind].line.positionA : clats[ind].line.positionB; ;
+
+                    vertexs[vertexs.Count - 1].Add(p);//将点加入相应的点集
                     visited[ind] = true;//将访问过的线段标记
-                    float dista = Vector3.Distance(pt, pl.pos);//计算点与平面位置的距离
+                    double dista = Vector3D.Distance(p, pl.pos);//计算点与平面位置的距离
                     if (dista < min_dist)//取距离最小值，以此确定最内圈的轮廓
                     {
                         min_dist = dista;
@@ -463,9 +505,9 @@ namespace EzySlice {
 
                     // add the vertices
                     //添加点
-                    newVertices[i0] = newTri.positionA;
-                    newVertices[i1] = newTri.positionB;
-                    newVertices[i2] = newTri.positionC;
+                    newVertices[i0] = newTri.positionA.ToVector3();
+                    newVertices[i1] = newTri.positionB.ToVector3();
+                    newVertices[i2] = newTri.positionC.ToVector3();
 
                     // add the UV coordinates if any
                     if (hasUV) {
@@ -476,9 +518,9 @@ namespace EzySlice {
 
                     // add the Normals if any
                     if (hasNormal) {
-                        newNormals[i0] = newTri.normalA;
-                        newNormals[i1] = newTri.normalB;
-                        newNormals[i2] = newTri.normalC;
+                        newNormals[i0] = newTri.normalA.ToVector3();
+                        newNormals[i1] = newTri.normalB.ToVector3();
+                        newNormals[i2] = newTri.normalC.ToVector3();
                     }
 
                     // add the Tangents if any
@@ -515,9 +557,9 @@ namespace EzySlice {
                     int i2 = vIndex + 2;
 
                     // add the vertices
-                    newVertices[i0] = newTri.positionA;
-                    newVertices[i1] = newTri.positionB;
-                    newVertices[i2] = newTri.positionC;
+                    newVertices[i0] = newTri.positionA.ToVector3();
+                    newVertices[i1] = newTri.positionB.ToVector3();
+                    newVertices[i2] = newTri.positionC.ToVector3();
 
                     // add the UV coordinates if any
                     if (hasUV) {
@@ -530,13 +572,13 @@ namespace EzySlice {
                     if (hasNormal) {
                         // invert the normals dependiong on upper or lower hull
                         if (isUpper) {
-                            newNormals[i0] = -newTri.normalA;
-                            newNormals[i1] = -newTri.normalB;
-                            newNormals[i2] = -newTri.normalC;
+                            newNormals[i0] = -newTri.normalA.ToVector3();
+                            newNormals[i1] = -newTri.normalB.ToVector3();
+                            newNormals[i2] = -newTri.normalC.ToVector3();
                         } else {
-                            newNormals[i0] = newTri.normalA;
-                            newNormals[i1] = newTri.normalB;
-                            newNormals[i2] = newTri.normalC;
+                            newNormals[i0] = newTri.normalA.ToVector3();
+                            newNormals[i1] = newTri.normalB.ToVector3();
+                            newNormals[i2] = newTri.normalC.ToVector3();
                         }
                     }
 

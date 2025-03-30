@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Ezyslice;
 
 namespace EzySlice {
 
@@ -18,26 +19,26 @@ namespace EzySlice {
          */
         //将三维点投影到二维平面
         internal struct Mapped2D {
-            private readonly Vector3 original;
+            private readonly Vector3D original;
             private readonly Vector2 mapped;
 
-            public Mapped2D(Vector3 newOriginal, Vector3 u, Vector3 v) {
+            public Mapped2D(Vector3D newOriginal, Vector3D u, Vector3D v) {
                 this.original = newOriginal;
-                this.mapped = new Vector2(Vector3.Dot(newOriginal, u), Vector3.Dot(newOriginal, v));
+                this.mapped = new Vector2((float) Vector3D.Dot(newOriginal, u),(float) Vector3D.Dot(newOriginal, v));
             }
 
             public Vector2 mappedValue {
                 get { return this.mapped; }
             }
 
-            public Vector3 originalValue {
+            public Vector3D originalValue {
                 get { return this.original; }
             }
         }
 
         //对轮廓三角形化
         //输入有顺序的轮廓点集、平面法线，输出三角形集
-        public static bool Triangulate(List<Vector3> vertices, Vector3 normal, out List<Triangle> tri, TextureRegion texRegion)
+        public static bool Triangulate(List<Vector3D> vertices, Vector3D normal, out List<Triangle> tri, TextureRegion texRegion)
         {
             //vertices.Reverse();
 
@@ -57,12 +58,12 @@ namespace EzySlice {
             }
 
             //创建平面上的正交向量
-            Vector3 u = Vector3.Normalize(Vector3.Cross(normal, Vector3.up));
-            if (Vector3.zero == u)
+            Vector3D u = Vector3D.Normalize(Vector3D.Cross(normal, new Vector3D(Vector3.up)));
+            if (new Vector3D(Vector3.zero) == u)
             {//防止法线与上方向平行
-                u = Vector3.Normalize(Vector3.Cross(normal, Vector3.forward));
+                u = Vector3D.Normalize(Vector3D.Cross(normal, new Vector3D(Vector3.forward)));
             }
-            Vector3 v = Vector3.Cross(u, normal);
+            Vector3D v = Vector3D.Cross(u, normal);
 
             //创建投影操作的数组
             Mapped2D[] mapped = new Mapped2D[count];
@@ -74,7 +75,7 @@ namespace EzySlice {
             //投影到二维平面
             for (int i = 0; i < count; i++)
             {
-                Vector3 vertToAdd = vertices[i];
+                Vector3D vertToAdd = new Vector3D(vertices[i]);
 
                 Mapped2D newMappedValue = new Mapped2D(vertToAdd, u, v);
                 Vector2 mapVal = newMappedValue.mappedValue;

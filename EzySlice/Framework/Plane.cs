@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using UnityEngine;
+using Ezyslice;
 
 namespace EzySlice {
 
@@ -22,43 +23,43 @@ namespace EzySlice {
      * an optimal structure for collision tests for the slicing framework.
      */
     public struct Plane {
-        private Vector3 m_normal;
-        private Vector3 m_pos;
-        private float m_dist;
+        private Vector3D m_normal;
+        private Vector3D m_pos;
+        private double m_dist;
 
-        public Plane(Vector3 pos, Vector3 norm) {
+        public Plane(Vector3D pos, Vector3D norm) {
             this.m_normal = norm;
-            this.m_dist = Vector3.Dot(norm, pos);
+            this.m_dist = Vector3D.Dot(norm, pos);
             this.m_pos=pos;
         }
 
-        public void Compute(Vector3 pos, Vector3 norm) {
+        public void Compute(Vector3D pos, Vector3D norm) {
             this.m_normal = norm;
-            this.m_dist = Vector3.Dot(norm, pos);
+            this.m_dist = Vector3D.Dot(norm, pos);
         }
 
         public void Compute(Transform trans) {
-            Compute(trans.position, trans.up);
+            Compute(new Vector3D(trans.position), new Vector3D(trans.up));
         }
 
         public void Compute(GameObject obj) {
             Compute(obj.transform);
         }
 
-        public Vector3 normal {
+        public Vector3D normal {
             get { return this.m_normal; }
         }
 
-        public float dist {
+        public double dist {
             get { return this.m_dist; }
         }
 
-        public Vector3 pos{
+        public Vector3D pos{
             get { return this.m_pos; }
         }
 
-        public SideOfPlane SideOf(Vector3 pt) {
-            float result = Vector3.Dot(m_normal, pt) - m_dist;
+        public SideOfPlane SideOf(Vector3D pt) {
+            double result = Vector3D.Dot(m_normal, pt) - m_dist;
 
             if (result > Intersector.Epsilon) {
                 return SideOfPlane.UP;

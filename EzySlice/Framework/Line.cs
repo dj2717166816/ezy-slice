@@ -1,13 +1,14 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Ezyslice;
 
 namespace EzySlice {
     public struct Line {
-        private readonly Vector3 m_pos_a;
-        private readonly Vector3 m_pos_b;
+        private readonly Vector3D m_pos_a;
+        private readonly Vector3D m_pos_b;
         private readonly bool flip;
-        public Line(Vector3 a, Vector3 b)
+        public Line(Vector3D a, Vector3D b)
         {
             // 通过坐标大小比较来保证无向性
             if (a.x < b.x || (a.x == b.x && a.y < b.y) || (a.x == b.x && a.y == b.y && a.z < b.z))
@@ -46,11 +47,11 @@ namespace EzySlice {
             get { return flip; }
         }
 
-        public Vector3 positionA {
+        public Vector3D positionA {
             get { return this.m_pos_a; }
         }
 
-        public Vector3 positionB {
+        public Vector3D positionB {
             get { return this.m_pos_b; }
         }
     }

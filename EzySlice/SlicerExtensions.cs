@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using Ezyslice;
 
 namespace EzySlice {
     /**
@@ -26,8 +27,8 @@ namespace EzySlice {
             Matrix4x4 transpose = mat.transpose;
             Matrix4x4 inv = transpose.inverse;
 
-            Vector3 refUp = inv.MultiplyVector(direction).normalized;
-            Vector3 refPt = obj.transform.InverseTransformPoint(position);
+            Vector3D refUp = new Vector3D(inv.MultiplyVector(direction).normalized);
+            Vector3D refPt = new Vector3D(obj.transform.InverseTransformPoint(position));
 
             cuttingPlane.Compute(refPt, refUp);
 
@@ -61,8 +62,8 @@ namespace EzySlice {
             Matrix4x4 transpose = mat.transpose;
             Matrix4x4 inv = transpose.inverse;
 
-            Vector3 refUp = inv.MultiplyVector(direction).normalized;
-            Vector3 refPt = obj.transform.InverseTransformPoint(position);
+            Vector3D refUp = new Vector3D(inv.MultiplyVector(direction).normalized);
+            Vector3D refPt = new Vector3D(obj.transform.InverseTransformPoint(position));
 
             cuttingPlane.Compute(refPt, refUp);
 

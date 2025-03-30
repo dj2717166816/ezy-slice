@@ -1,5 +1,6 @@
 using System.Linq;
 using UnityEngine;
+using Ezyslice;
 
 namespace EzySlice {
     /**
@@ -11,9 +12,9 @@ namespace EzySlice {
         // the points which represent this triangle
         // these have to be set and are immutable. Cannot be
         // changed once set
-        private readonly Vector3 m_pos_a;
-        private readonly Vector3 m_pos_b;
-        private readonly Vector3 m_pos_c;
+        private readonly Vector3D m_pos_a;
+        private readonly Vector3D m_pos_b;
+        private readonly Vector3D m_pos_c;
 
         // the UV coordinates of this triangle
         // these are optional and may not be set
@@ -25,9 +26,9 @@ namespace EzySlice {
         // the Normals of the Vertices
         // these are optional and may not be set
         private bool m_nor_set;
-        private Vector3 m_nor_a;
-        private Vector3 m_nor_b;
-        private Vector3 m_nor_c;
+        private Vector3D m_nor_a;
+        private Vector3D m_nor_b;
+        private Vector3D m_nor_c;
 
         // the Tangents of the Vertices
         // these are optional and may not be set
@@ -38,12 +39,12 @@ namespace EzySlice {
 
         public int index;
 
-        public Triangle(Vector3 posa,
-            Vector3 posb,
-            Vector3 posc) {
-            this.m_pos_a = posa;
-            this.m_pos_b = posb;
-            this.m_pos_c = posc;
+        public Triangle(Vector3D posa,
+            Vector3D posb,
+            Vector3D posc) {
+            this.m_pos_a = new Vector3D(posa);
+            this.m_pos_b = new Vector3D(posb);
+            this.m_pos_c = new Vector3D(posc);
 
             this.m_uv_set = false;
             this.m_uv_a = Vector2.zero;
@@ -51,9 +52,9 @@ namespace EzySlice {
             this.m_uv_c = Vector2.zero;
 
             this.m_nor_set = false;
-            this.m_nor_a = Vector3.zero;
-            this.m_nor_b = Vector3.zero;
-            this.m_nor_c = Vector3.zero;
+            this.m_nor_a = new Vector3D(Vector3.zero);
+            this.m_nor_b = new Vector3D(Vector3.zero);
+            this.m_nor_c = new Vector3D(Vector3.zero);
 
             this.m_tan_set = false;
             this.m_tan_a = Vector4.zero;
@@ -63,15 +64,15 @@ namespace EzySlice {
             index = -1;
         }
 
-        public Vector3 positionA {
+        public Vector3D positionA {
             get { return this.m_pos_a; }
         }
 
-        public Vector3 positionB {
+        public Vector3D positionB {
             get { return this.m_pos_b; }
         }
 
-        public Vector3 positionC {
+        public Vector3D positionC {
             get { return this.m_pos_c; }
         }
 
@@ -103,7 +104,7 @@ namespace EzySlice {
             get { return this.m_nor_set; }
         }
 
-        public void SetNormal(Vector3 norA, Vector3 norB, Vector3 norC) {
+        public void SetNormal(Vector3D norA, Vector3D norB, Vector3D norC) {
             this.m_nor_a = norA;
             this.m_nor_b = norB;
             this.m_nor_c = norC;
@@ -111,15 +112,15 @@ namespace EzySlice {
             this.m_nor_set = true;
         }
 
-        public Vector3 normalA {
+        public Vector3D normalA {
             get { return this.m_nor_a; }
         }
 
-        public Vector3 normalB {
+        public Vector3D normalB {
             get { return this.m_nor_b; }
         }
 
-        public Vector3 normalC {
+        public Vector3D normalC {
             get { return this.m_nor_c; }
         }
 
@@ -187,48 +188,48 @@ namespace EzySlice {
                 return;
             }
 
-            Vector3 v1 = m_pos_a;
-            Vector3 v2 = m_pos_b;
-            Vector3 v3 = m_pos_c;
+            Vector3 v1 = m_pos_a.ToVector3();
+            Vector3 v2 = m_pos_b.ToVector3();
+            Vector3 v3 = m_pos_c.ToVector3();
 
             Vector2 w1 = m_uv_a;
             Vector2 w2 = m_uv_b;
             Vector2 w3 = m_uv_c;
 
-            float x1 = v2.x - v1.x;
-            float x2 = v3.x - v1.x;
-            float y1 = v2.y - v1.y;
-            float y2 = v3.y - v1.y;
-            float z1 = v2.z - v1.z;
-            float z2 = v3.z - v1.z;
+            double x1 = v2.x - v1.x;
+            double x2 = v3.x - v1.x;
+            double y1 = v2.y - v1.y;
+            double y2 = v3.y - v1.y;
+            double z1 = v2.z - v1.z;
+            double z2 = v3.z - v1.z;
 
-            float s1 = w2.x - w1.x;
-            float s2 = w3.x - w1.x;
-            float t1 = w2.y - w1.y;
-            float t2 = w3.y - w1.y;
+            double s1 = w2.x - w1.x;
+            double s2 = w3.x - w1.x;
+            double t1 = w2.y - w1.y;
+            double t2 = w3.y - w1.y;
 
-            float r = 1.0f / (s1 * t2 - s2 * t1);
+            double r = 1.0f / (s1 * t2 - s2 * t1);
 
-            Vector3 sdir = new Vector3((t2 * x1 - t1 * x2) * r, (t2 * y1 - t1 * y2) * r, (t2 * z1 - t1 * z2) * r);
-            Vector3 tdir = new Vector3((s1 * x2 - s2 * x1) * r, (s1 * y2 - s2 * y1) * r, (s1 * z2 - s2 * z1) * r);
+            Vector3D sdir = new Vector3D((t2 * x1 - t1 * x2) * r, (t2 * y1 - t1 * y2) * r, (t2 * z1 - t1 * z2) * r);
+            Vector3D tdir = new Vector3D((s1 * x2 - s2 * x1) * r, (s1 * y2 - s2 * y1) * r, (s1 * z2 - s2 * z1) * r);
 
-            Vector3 n1 = m_nor_a;
-            Vector3 nt1 = sdir;
+            Vector3D n1 = m_nor_a;
+            Vector3D nt1 = sdir;
 
-            Vector3.OrthoNormalize(ref n1, ref nt1);
-            Vector4 tanA = new Vector4(nt1.x, nt1.y, nt1.z, (Vector3.Dot(Vector3.Cross(n1, nt1), tdir) < 0.0f) ? -1.0f : 1.0f);
+            Vector3D.OrthoNormalize(ref n1, ref nt1);
+            Vector4 tanA = new Vector4((float)nt1.x, (float)nt1.y, (float)nt1.z, (Vector3D.Dot(Vector3D.Cross(n1, nt1), tdir) < 0.0f) ? -1.0f : 1.0f);
 
-            Vector3 n2 = m_nor_b;
-            Vector3 nt2 = sdir;
+            Vector3D n2 = m_nor_b;
+            Vector3D nt2 = sdir;
 
-            Vector3.OrthoNormalize(ref n2, ref nt2);
-            Vector4 tanB = new Vector4(nt2.x, nt2.y, nt2.z, (Vector3.Dot(Vector3.Cross(n2, nt2), tdir) < 0.0f) ? -1.0f : 1.0f);
+            Vector3D.OrthoNormalize(ref n2, ref nt2);
+            Vector4 tanB = new Vector4((float)nt2.x, (float)nt2.y, (float)nt2.z, (Vector3D.Dot(Vector3D.Cross(n2, nt2), tdir) < 0.0f) ? -1.0f : 1.0f);
 
-            Vector3 n3 = m_nor_c;
-            Vector3 nt3 = sdir;
+            Vector3D n3 = m_nor_c;
+            Vector3D nt3 = sdir;
 
-            Vector3.OrthoNormalize(ref n3, ref nt3);
-            Vector4 tanC = new Vector4(nt3.x, nt3.y, nt3.z, (Vector3.Dot(Vector3.Cross(n3, nt3), tdir) < 0.0f) ? -1.0f : 1.0f);
+            Vector3D.OrthoNormalize(ref n3, ref nt3);
+            Vector4 tanC = new Vector4((float)nt3.x, (float)nt3.y, (float)nt3.z, (Vector3D.Dot(Vector3D.Cross(n3, nt3), tdir) < 0.0f) ? -1.0f : 1.0f);
 
             // finally set the tangents of this object
             SetTangent(tanA, tanB, tanC);
@@ -240,9 +241,9 @@ namespace EzySlice {
          */
         //计算点在三角形中的重心表示
         public Vector3 Barycentric(Vector3 p) {
-            Vector3 a = m_pos_a;
-            Vector3 b = m_pos_b;
-            Vector3 c = m_pos_c;
+            Vector3 a = m_pos_a.ToVector3();
+            Vector3 b = m_pos_b.ToVector3();
+            Vector3 c = m_pos_c.ToVector3();
 
             Vector3 m = Vector3.Cross(b - a, c - a);
 
@@ -304,10 +305,10 @@ namespace EzySlice {
          * Uses weight values for the computation, so this triangle must have Normal's set to return
          * the correct results. Otherwise Vector3.zero will be returned. check via hasNormal().
          */
-        public Vector3 GenerateNormal(Vector3 pt) {
+        public Vector3D GenerateNormal(Vector3 pt) {
             // if not set, result will be zero, quick exit
             if (!m_nor_set) {
-                return Vector3.zero;
+                return new Vector3D(Vector3.zero);
             }
 
             Vector3 weights = Barycentric(pt);

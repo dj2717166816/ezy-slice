@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Ezyslice;
 
 namespace EzySlice {
     /**
@@ -9,22 +10,22 @@ namespace EzySlice {
      */
     public sealed class Intersector {
 
-        public const float Epsilon = 0.001f;
+        public const double Epsilon = 0.001f;
 
-        public static bool Intersect(Plane pl, Vector3 a, Vector3 b, out Vector3 q) {
-            Vector3 normal = pl.normal;
-            Vector3 ab = b - a;
+        public static bool Intersect(Plane pl, Vector3D a, Vector3D b, out Vector3D q) {
+            Vector3D normal = pl.normal;
+            Vector3D ab = new Vector3D(b.x - a.x, b.y - a.y, b.z - a.z);
 
-            float t = (pl.dist - Vector3.Dot(normal, a)) / Vector3.Dot(normal, ab);
+            double t = (pl.dist - Vector3D.Dot(normal, a)) / Vector3D.Dot(normal, ab);
 
             // need to be careful and compensate for floating errors
             if (t >= -Epsilon && t <= (1 + Epsilon)) {
-                q = a + t * ab;
+                q = new Vector3D(a.x + ab.x * t, a.y + ab.y * t, a.z + ab.z * t);
 
                 return true;
             }
 
-            q = Vector3.zero;
+            q = new Vector3D(Vector3.zero);
 
             return false;
         }
@@ -37,9 +38,9 @@ namespace EzySlice {
         //计算切割出的线段，并与三角形编号一同传入CuttingLineAndTri，这里传入的Line中的点顺序可能发生变化，不能直接用在后边切割，要用flip判断是否顺序翻转
         public static void Cutting(Plane pl, Triangle tri, int index, IntersectionResult result)
         {
-            Vector3 a = tri.positionA;
-            Vector3 b = tri.positionB;
-            Vector3 c = tri.positionC;
+            Vector3D a = tri.positionA;
+            Vector3D b = tri.positionB;
+            Vector3D c = tri.positionC;
 
             SideOfPlane sa = pl.SideOf(a);
             SideOfPlane sb = pl.SideOf(b);
@@ -50,7 +51,7 @@ namespace EzySlice {
             {
                 bool on = sc == SideOfPlane.UP;
 
-                CuttingLineAndTri clat = new CuttingLineAndTri(a, b, -1, 0);
+                CuttingLineAndTri clat = new CuttingLineAndTri(a, b, result.hash, result.hash+1, -1, 0);
                 if (!result.has_clat.ContainsKey(clat))
                 {
                     result.has_clat.Add(clat,(index, on));
@@ -67,7 +68,7 @@ namespace EzySlice {
             {
                 bool on = sb == SideOfPlane.UP;
 
-                CuttingLineAndTri clat = new CuttingLineAndTri(a, c, -1, 0);
+                CuttingLineAndTri clat = new CuttingLineAndTri(a, c, result.hash, result.hash + 1, -1, 0);
                 if (!result.has_clat.ContainsKey(clat))
                 {
                     result.has_clat.Add(clat, (index, on));
@@ -84,7 +85,7 @@ namespace EzySlice {
             {
                 bool on = sa == SideOfPlane.UP;
 
-                CuttingLineAndTri clat = new CuttingLineAndTri(b, c, -1, 0);
+                CuttingLineAndTri clat = new CuttingLineAndTri(b, c, result.hash, result.hash + 1, -1, 0);
                 if (!result.has_clat.ContainsKey(clat))
                 {
                     result.has_clat.Add(clat, (index, on));
@@ -108,8 +109,8 @@ namespace EzySlice {
             }
 
             //切割获得两个交点
-            Vector3 qa;
-            Vector3 qb;
+            Vector3D qa;
+            Vector3D qb;
 
             //一点在平面上，其他两点位于两侧
             //a在平面上
@@ -117,7 +118,7 @@ namespace EzySlice {
             {
                 if (Intersector.Intersect(pl, b, c, out qa))
                 {
-                    result.AddCuttingLine(new CuttingLineAndTri(qa, a, index, 1));
+                    result.AddCuttingLine(new CuttingLineAndTri(qa, a, result.hash, result.hash + 1, index, 1));
                 }
             }
             //b在平面上
@@ -125,7 +126,7 @@ namespace EzySlice {
             {
                 if (Intersector.Intersect(pl, a, c, out qa))
                 {
-                    result.AddCuttingLine(new CuttingLineAndTri(qa, b, index, 2));
+                    result.AddCuttingLine(new CuttingLineAndTri(qa, b, result.hash, result.hash + 1, index, 2));
                 }
             }
             //c在平面上
@@ -133,7 +134,7 @@ namespace EzySlice {
             {
                 if (Intersector.Intersect(pl, a, b, out qa))
                 {
-                    result.AddCuttingLine(new CuttingLineAndTri(qa, c, index, 3));
+                    result.AddCuttingLine(new CuttingLineAndTri(qa, c, result.hash, result.hash + 1, index, 3));
                 }
             }
 
@@ -144,20 +145,20 @@ namespace EzySlice {
                 {
                     if (Intersector.Intersect(pl, b, c, out qb))
                     {
-                        result.AddCuttingLine(new CuttingLineAndTri(qa, qb, index, 4));
+                        result.AddCuttingLine(new CuttingLineAndTri(qa, qb, result.hash, result.hash + 1, index, 4));
                     }
                 }
                 else
                 {
                     if (Intersector.Intersect(pl, a, c, out qb))
                     {
-                        result.AddCuttingLine(new CuttingLineAndTri(qa, qb, index, 5));
+                        result.AddCuttingLine(new CuttingLineAndTri(qa, qb, result.hash, result.hash + 1, index, 5));
                     }
                 }
             }
             else if (Intersector.Intersect(pl, c, a, out qa) && Intersector.Intersect(pl, c, b, out qb))
             {
-                result.AddCuttingLine(new CuttingLineAndTri(qa, qb, index, 6));
+                result.AddCuttingLine(new CuttingLineAndTri(qa, qb, index, result.hash, result.hash + 1, 6));
             }
         } 
 
@@ -179,894 +180,451 @@ namespace EzySlice {
             }
 
             Triangle tri = triangles[contour.TriIndex];
-            Vector3 a = tri.positionA;
-            Vector3 b = tri.positionB;
-            Vector3 c = tri.positionC;
+            Vector3D a = tri.positionA;
+            Vector3D b = tri.positionB;
+            Vector3D c = tri.positionC;
             SideOfPlane sa = pl.SideOf(a);
             SideOfPlane sb = pl.SideOf(b);
             SideOfPlane sc = pl.SideOf(c);
 
-            if (!contour.line.is_fliped)//检查端点顺序是否翻转
+            //Debug.Log("sliced1");
+            if (contour.flag == 1)
             {
-                //Debug.Log("sliced1");
-                if (contour.flag == 1)
+                //Debug.Log("1");
+                Vector3D qa = contour.line.positionA;
+
+                Triangle ta = new Triangle(a, b, qa);
+                Triangle tb = new Triangle(a, qa, c);
+
+                //替换原来的三角形，并添加新三角形，对新三角形进行标记
+                triangles[contour.TriIndex] = ta;
+                ta.index = contour.TriIndex;
+                triangles.Add(tb);
+                tb.index = triangles.Count - 1;
+                visited[contour.TriIndex] = true;
+                visited.Add(true);
+
+                // generate UV coordinates if there is any
+                if (tri.hasUV)
                 {
-                    //Debug.Log("1");
-                    Vector3 qa = contour.line.positionA;
+                    // the computed UV coordinate if the intersection point
+                    Vector2 pq = tri.GenerateUV(qa.ToVector3());
+                    Vector2 pa = tri.uvA;
+                    Vector2 pb = tri.uvB;
+                    Vector2 pc = tri.uvC;
 
-                    Triangle ta = new Triangle(a, b, qa);
-                    Triangle tb = new Triangle(a, qa, c);
-
-                    //替换原来的三角形，并添加新三角形，对新三角形进行标记
-                    triangles[contour.TriIndex] = ta;
-                    ta.index = contour.TriIndex;
-                    triangles.Add(tb);
-                    tb.index = triangles.Count-1;
-                    visited[contour.TriIndex] = true;
-                    visited.Add(true);
-
-                    // generate UV coordinates if there is any
-                    if (tri.hasUV)
-                    {
-                        // the computed UV coordinate if the intersection point
-                        Vector2 pq = tri.GenerateUV(qa);
-                        Vector2 pa = tri.uvA;
-                        Vector2 pb = tri.uvB;
-                        Vector2 pc = tri.uvC;
-
-                        ta.SetUV(pa, pb, pq);
-                        tb.SetUV(pa, pq, pc);
-                    }
-
-                    // generate Normal coordinates if there is any
-                    if (tri.hasNormal)
-                    {
-                        // the computed Normal coordinate if the intersection point
-                        Vector3 pq = tri.GenerateNormal(qa);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
-
-                        ta.SetNormal(pa, pb, pq);
-                        tb.SetNormal(pa, pq, pc);
-                    }
-
-                    // generate Tangent coordinates if there is any
-                    if (tri.hasTangent)
-                    {
-                        // the computed Tangent coordinate if the intersection point
-                        Vector4 pq = tri.GenerateTangent(qa);
-                        Vector4 pa = tri.tangentA;
-                        Vector4 pb = tri.tangentB;
-                        Vector4 pc = tri.tangentC;
-
-                        ta.SetTangent(pa, pb, pq);
-                        tb.SetTangent(pa, pq, pc);
-                    }
-
-                    // b point lies on the upside of the plane
-                    if (sb == SideOfPlane.UP)
-                    {
-                        result.upperTri.Add(ta);
-                        result.lowerTri.Add(tb);
-                    }
-
-                    // b point lies on the downside of the plane
-                    else if (sb == SideOfPlane.DOWN)
-                    {
-                        result.upperTri.Add(tb);//将新三角形加入搜索列表
-                        result.lowerTri.Add(ta);
-                    }
+                    ta.SetUV(pa, pb, pq);
+                    tb.SetUV(pa, pq, pc);
                 }
-                else if (contour.flag == 2)
+
+                // generate Normal coordinates if there is any
+                if (tri.hasNormal)
                 {
-                    //Debug.Log("2");
-                    Vector3 qa = contour.line.positionA;
+                    // the computed Normal coordinate if the intersection point
+                    Vector3D pq = tri.GenerateNormal(qa.ToVector3());
+                    Vector3D pa = tri.normalA;
+                    Vector3D pb = tri.normalB;
+                    Vector3D pc = tri.normalC;
 
-                    Triangle ta = new Triangle(a, b, qa);
-                    Triangle tb = new Triangle(qa, b, c);
-
-                    triangles[contour.TriIndex] = ta;
-                    ta.index = contour.TriIndex;
-                    triangles.Add(tb);
-                    tb.index = triangles.Count - 1;
-                    visited[contour.TriIndex] = true;
-                    visited.Add(true);
-
-                    // generate UV coordinates if there is any
-                    if (tri.hasUV)
-                    {
-                        // the computed UV coordinate if the intersection point
-                        Vector2 pq = tri.GenerateUV(qa);
-                        Vector2 pa = tri.uvA;
-                        Vector2 pb = tri.uvB;
-                        Vector2 pc = tri.uvC;
-
-                        ta.SetUV(pa, pb, pq);
-                        tb.SetUV(pq, pb, pc);
-                    }
-
-                    // generate Normal coordinates if there is any
-                    if (tri.hasNormal)
-                    {
-                        // the computed Normal coordinate if the intersection point
-                        Vector3 pq = tri.GenerateNormal(qa);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
-
-                        ta.SetNormal(pa, pb, pq);
-                        tb.SetNormal(pq, pb, pc);
-                    }
-
-                    // generate Tangent coordinates if there is any
-                    if (tri.hasTangent)
-                    {
-                        // the computed Tangent coordinate if the intersection point
-                        Vector4 pq = tri.GenerateTangent(qa);
-                        Vector4 pa = tri.tangentA;
-                        Vector4 pb = tri.tangentB;
-                        Vector4 pc = tri.tangentC;
-
-                        ta.SetTangent(pa, pb, pq);
-                        tb.SetTangent(pq, pb, pc);
-                    }
-
-                    // a point lies on the upside of the plane
-                    if (sa == SideOfPlane.UP)
-                    {
-                        result.upperTri.Add(ta);
-                        result.lowerTri.Add(tb);
-                    }
-
-                    // a point lies on the downside of the plane
-                    else if (sa == SideOfPlane.DOWN)
-                    {
-                        result.upperTri.Add(tb);
-                        result.lowerTri.Add(ta);
-                    }
+                    ta.SetNormal(pa, pb, pq);
+                    tb.SetNormal(pa, pq, pc);
                 }
-                else if (contour.flag == 3)
+
+                // generate Tangent coordinates if there is any
+                if (tri.hasTangent)
                 {
-                    //Debug.Log("3");
-                    Vector3 qa = contour.line.positionA;
+                    // the computed Tangent coordinate if the intersection point
+                    Vector4 pq = tri.GenerateTangent(qa.ToVector3());
+                    Vector4 pa = tri.tangentA;
+                    Vector4 pb = tri.tangentB;
+                    Vector4 pc = tri.tangentC;
 
-                    Triangle ta = new Triangle(a, qa, c);
-                    Triangle tb = new Triangle(qa, b, c);
-
-                    triangles[contour.TriIndex] = ta;
-                    ta.index = contour.TriIndex;
-                    triangles.Add(tb);
-                    tb.index = triangles.Count-1;
-                    visited[contour.TriIndex] = true;
-                    visited.Add(true);
-
-                    // generate UV coordinates if there is any
-                    if (tri.hasUV)
-                    {
-                        // the computed UV coordinate if the intersection point
-                        Vector2 pq = tri.GenerateUV(qa);
-                        Vector2 pa = tri.uvA;
-                        Vector2 pb = tri.uvB;
-                        Vector2 pc = tri.uvC;
-
-                        ta.SetUV(pa, pq, pc);
-                        tb.SetUV(pq, pb, pc);
-                    }
-
-                    // generate Normal coordinates if there is any
-                    if (tri.hasNormal)
-                    {
-                        // the computed Normal coordinate if the intersection point
-                        Vector3 pq = tri.GenerateNormal(qa);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
-
-                        ta.SetNormal(pa, pq, pc);
-                        tb.SetNormal(pq, pb, pc);
-                    }
-
-                    // generate Tangent coordinates if there is any
-                    if (tri.hasTangent)
-                    {
-                        // the computed Tangent coordinate if the intersection point
-                        Vector4 pq = tri.GenerateTangent(qa);
-                        Vector4 pa = tri.tangentA;
-                        Vector4 pb = tri.tangentB;
-                        Vector4 pc = tri.tangentC;
-
-                        ta.SetTangent(pa, pq, pc);
-                        tb.SetTangent(pq, pb, pc);
-                    }
-
-                    // a point lies on the upside of the plane
-                    if (sa == SideOfPlane.UP)
-                    {
-                        result.upperTri.Add(ta);
-                        result.lowerTri.Add(tb);
-                    }
-
-                    // a point lies on the downside of the plane
-                    else if (sa == SideOfPlane.DOWN)
-                    {
-                        result.upperTri.Add(tb);
-                        result.lowerTri.Add(ta);
-                    }
+                    ta.SetTangent(pa, pb, pq);
+                    tb.SetTangent(pa, pq, pc);
                 }
-                else if (contour.flag == 4)
+
+                // b point lies on the upside of the plane
+                if (sb == SideOfPlane.UP)
                 {
-                    //Debug.Log("4");
-                    Vector3 qa = contour.line.positionA;
-                    Vector3 qb = contour.line.positionB;
-
-                    Triangle ta = new Triangle(qa, b, qb);
-                    Triangle tb = new Triangle(a, qa, qb);
-                    Triangle tc = new Triangle(a, qb, c);
-
-                    // generate UV coordinates if there is any
-                    if (tri.hasUV)
-                    {
-                        // the computed UV coordinate if the intersection point
-                        Vector2 pqa = tri.GenerateUV(qa);
-                        Vector2 pqb = tri.GenerateUV(qb);
-                        Vector2 pa = tri.uvA;
-                        Vector2 pb = tri.uvB;
-                        Vector2 pc = tri.uvC;
-
-                        ta.SetUV(pqa, pb, pqb);
-                        tb.SetUV(pa, pqa, pqb);
-                        tc.SetUV(pa, pqb, pc);
-                    }
-
-                    // generate Normal coordinates if there is any
-                    if (tri.hasNormal)
-                    {
-                        // the computed Normal coordinate if the intersection point
-                        Vector3 pqa = tri.GenerateNormal(qa);
-                        Vector3 pqb = tri.GenerateNormal(qb);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
-
-                        ta.SetNormal(pqa, pb, pqb);
-                        tb.SetNormal(pa, pqa, pqb);
-                        tc.SetNormal(pa, pqb, pc);
-                    }
-
-                    // generate Tangent coordinates if there is any
-                    if (tri.hasTangent)
-                    {
-                        // the computed Tangent coordinate if the intersection point
-                        Vector4 pqa = tri.GenerateTangent(qa);
-                        Vector4 pqb = tri.GenerateTangent(qb);
-                        Vector4 pa = tri.tangentA;
-                        Vector4 pb = tri.tangentB;
-                        Vector4 pc = tri.tangentC;
-
-                        ta.SetTangent(pqa, pb, pqb);
-                        tb.SetTangent(pa, pqa, pqb);
-                        tc.SetTangent(pa, pqb, pc);
-                    }
-
-                    triangles[contour.TriIndex] = ta;
-                    ta.index = contour.TriIndex;
-                    triangles.Add(tb);
-                    tb.index = triangles.Count - 1;
-                    triangles.Add(tc);
-                    tc.index = triangles.Count - 1;
-                    visited[contour.TriIndex] = true;
-                    visited.Add(true);
-                    visited.Add(false);
-
-                    if (sa == SideOfPlane.UP)
-                    {
-                        result.upperTri.Add(tb);
-                        //result.upperTri.Add(tc);
-                        result.lowerTri.Add(ta);
-                    }
-                    else
-                    {
-                        result.upperTri.Add(ta);
-                        result.lowerTri.Add(tb);
-                        //result.lowerTri.Add(tc);
-                    }
+                    result.upperTri.Add(ta);
+                    result.lowerTri.Add(tb);
                 }
-                else if (contour.flag == 5)
+
+                // b point lies on the downside of the plane
+                else if (sb == SideOfPlane.DOWN)
                 {
-                    //Debug.Log("5");
-                    Vector3 qa = contour.line.positionA;
-                    Vector3 qb = contour.line.positionB;
+                    result.upperTri.Add(tb);//将新三角形加入搜索列表
+                    result.lowerTri.Add(ta);
+                }
+            }
+            else if (contour.flag == 2)
+            {
+                //Debug.Log("2");
+                Vector3D qa = contour.line.positionA;
 
-                    Triangle ta = new Triangle(a, qa, qb);
-                    Triangle tb = new Triangle(qa, b, c);
-                    Triangle tc = new Triangle(qb, qa, c);
+                Triangle ta = new Triangle(a, b, qa);
+                Triangle tb = new Triangle(qa, b, c);
 
-                    // generate UV coordinates if there is any
-                    if (tri.hasUV)
-                    {
-                        // the computed UV coordinate if the intersection point
-                        Vector2 pqa = tri.GenerateUV(qa);
-                        Vector2 pqb = tri.GenerateUV(qb);
-                        Vector2 pa = tri.uvA;
-                        Vector2 pb = tri.uvB;
-                        Vector2 pc = tri.uvC;
+                triangles[contour.TriIndex] = ta;
+                ta.index = contour.TriIndex;
+                triangles.Add(tb);
+                tb.index = triangles.Count - 1;
+                visited[contour.TriIndex] = true;
+                visited.Add(true);
 
-                        ta.SetUV(pa, pqa, pqb);
-                        tb.SetUV(pqa, pb, pc);
-                        tc.SetUV(pqb, pqa, pc);
-                    }
+                // generate UV coordinates if there is any
+                if (tri.hasUV)
+                {
+                    // the computed UV coordinate if the intersection point
+                    Vector2 pq = tri.GenerateUV(qa.ToVector3());
+                    Vector2 pa = tri.uvA;
+                    Vector2 pb = tri.uvB;
+                    Vector2 pc = tri.uvC;
 
-                    // generate Normal coordinates if there is any
-                    if (tri.hasNormal)
-                    {
-                        // the computed Normal coordinate if the intersection point
-                        Vector3 pqa = tri.GenerateNormal(qa);
-                        Vector3 pqb = tri.GenerateNormal(qb);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
+                    ta.SetUV(pa, pb, pq);
+                    tb.SetUV(pq, pb, pc);
+                }
 
-                        ta.SetNormal(pa, pqa, pqb);
-                        tb.SetNormal(pqa, pb, pc);
-                        tc.SetNormal(pqb, pqa, pc);
-                    }
+                // generate Normal coordinates if there is any
+                if (tri.hasNormal)
+                {
+                    // the computed Normal coordinate if the intersection point
+                    Vector3D pq = tri.GenerateNormal(qa.ToVector3());
+                    Vector3D pa = tri.normalA;
+                    Vector3D pb = tri.normalB;
+                    Vector3D pc = tri.normalC;
 
-                    // generate Tangent coordinates if there is any
-                    if (tri.hasTangent)
-                    {
-                        // the computed Tangent coordinate if the intersection point
-                        Vector4 pqa = tri.GenerateTangent(qa);
-                        Vector4 pqb = tri.GenerateTangent(qb);
-                        Vector4 pa = tri.tangentA;
-                        Vector4 pb = tri.tangentB;
-                        Vector4 pc = tri.tangentC;
+                    ta.SetNormal(pa, pb, pq);
+                    tb.SetNormal(pq, pb, pc);
+                }
 
-                        ta.SetTangent(pa, pqa, pqb);
-                        tb.SetTangent(pqa, pb, pc);
-                        tc.SetTangent(pqb, pqa, pc);
-                    }
+                // generate Tangent coordinates if there is any
+                if (tri.hasTangent)
+                {
+                    // the computed Tangent coordinate if the intersection point
+                    Vector4 pq = tri.GenerateTangent(qa.ToVector3());
+                    Vector4 pa = tri.tangentA;
+                    Vector4 pb = tri.tangentB;
+                    Vector4 pc = tri.tangentC;
 
-                    triangles[contour.TriIndex] = ta;
-                    ta.index = contour.TriIndex;
-                    triangles.Add(tb);
-                    tb.index = triangles.Count - 1;
-                    triangles.Add(tc);
-                    tc.index = triangles.Count - 1;
-                    visited[contour.TriIndex] = true;
-                    visited.Add(false);
-                    visited.Add(true);
+                    ta.SetTangent(pa, pb, pq);
+                    tb.SetTangent(pq, pb, pc);
+                }
 
-                    if (sa == SideOfPlane.UP)
-                    {
-                        result.upperTri.Add(ta);
-                        //result.lowerTri.Add(tb);
-                        result.lowerTri.Add(tc);
-                    }
-                    else
-                    {
-                        //result.upperTri.Add(tb);
-                        result.upperTri.Add(tc);
-                        result.lowerTri.Add(ta);
-                    }
+                // a point lies on the upside of the plane
+                if (sa == SideOfPlane.UP)
+                {
+                    result.upperTri.Add(ta);
+                    result.lowerTri.Add(tb);
+                }
+
+                // a point lies on the downside of the plane
+                else if (sa == SideOfPlane.DOWN)
+                {
+                    result.upperTri.Add(tb);
+                    result.lowerTri.Add(ta);
+                }
+            }
+            else if (contour.flag == 3)
+            {
+                //Debug.Log("3");
+                Vector3D qa = contour.line.positionA;
+
+                Triangle ta = new Triangle(a, qa, c);
+                Triangle tb = new Triangle(qa, b, c);
+
+                triangles[contour.TriIndex] = ta;
+                ta.index = contour.TriIndex;
+                triangles.Add(tb);
+                tb.index = triangles.Count - 1;
+                visited[contour.TriIndex] = true;
+                visited.Add(true);
+
+                // generate UV coordinates if there is any
+                if (tri.hasUV)
+                {
+                    // the computed UV coordinate if the intersection point
+                    Vector2 pq = tri.GenerateUV(qa.ToVector3());
+                    Vector2 pa = tri.uvA;
+                    Vector2 pb = tri.uvB;
+                    Vector2 pc = tri.uvC;
+
+                    ta.SetUV(pa, pq, pc);
+                    tb.SetUV(pq, pb, pc);
+                }
+
+                // generate Normal coordinates if there is any
+                if (tri.hasNormal)
+                {
+                    // the computed Normal coordinate if the intersection point
+                    Vector3D pq = tri.GenerateNormal(qa.ToVector3());
+                    Vector3D pa = tri.normalA;
+                    Vector3D pb = tri.normalB;
+                    Vector3D pc = tri.normalC;
+
+                    ta.SetNormal(pa, pq, pc);
+                    tb.SetNormal(pq, pb, pc);
+                }
+
+                // generate Tangent coordinates if there is any
+                if (tri.hasTangent)
+                {
+                    // the computed Tangent coordinate if the intersection point
+                    Vector4 pq = tri.GenerateTangent(qa.ToVector3());
+                    Vector4 pa = tri.tangentA;
+                    Vector4 pb = tri.tangentB;
+                    Vector4 pc = tri.tangentC;
+
+                    ta.SetTangent(pa, pq, pc);
+                    tb.SetTangent(pq, pb, pc);
+                }
+
+                // a point lies on the upside of the plane
+                if (sa == SideOfPlane.UP)
+                {
+                    result.upperTri.Add(ta);
+                    result.lowerTri.Add(tb);
+                }
+
+                // a point lies on the downside of the plane
+                else if (sa == SideOfPlane.DOWN)
+                {
+                    result.upperTri.Add(tb);
+                    result.lowerTri.Add(ta);
+                }
+            }
+            else if (contour.flag == 4)
+            {
+                //Debug.Log("4");
+                Vector3D qa = contour.line.positionA;
+                Vector3D qb = contour.line.positionB;
+
+                Triangle ta = new Triangle(qa, b, qb);
+                Triangle tb = new Triangle(a, qa, qb);
+                Triangle tc = new Triangle(a, qb, c);
+
+                // generate UV coordinates if there is any
+                if (tri.hasUV)
+                {
+                    // the computed UV coordinate if the intersection point
+                    Vector2 pqa = tri.GenerateUV(qa.ToVector3());
+                    Vector2 pqb = tri.GenerateUV(qb.ToVector3());
+                    Vector2 pa = tri.uvA;
+                    Vector2 pb = tri.uvB;
+                    Vector2 pc = tri.uvC;
+
+                    ta.SetUV(pqa, pb, pqb);
+                    tb.SetUV(pa, pqa, pqb);
+                    tc.SetUV(pa, pqb, pc);
+                }
+
+                // generate Normal coordinates if there is any
+                if (tri.hasNormal)
+                {
+                    // the computed Normal coordinate if the intersection point
+                    Vector3D pqa = tri.GenerateNormal(qa.ToVector3());
+                    Vector3D pqb = tri.GenerateNormal(qb.ToVector3());
+                    Vector3D pa = tri.normalA;
+                    Vector3D pb = tri.normalB;
+                    Vector3D pc = tri.normalC;
+
+                    ta.SetNormal(pqa, pb, pqb);
+                    tb.SetNormal(pa, pqa, pqb);
+                    tc.SetNormal(pa, pqb, pc);
+                }
+
+                // generate Tangent coordinates if there is any
+                if (tri.hasTangent)
+                {
+                    // the computed Tangent coordinate if the intersection point
+                    Vector4 pqa = tri.GenerateTangent(qa.ToVector3());
+                    Vector4 pqb = tri.GenerateTangent(qb.ToVector3());
+                    Vector4 pa = tri.tangentA;
+                    Vector4 pb = tri.tangentB;
+                    Vector4 pc = tri.tangentC;
+
+                    ta.SetTangent(pqa, pb, pqb);
+                    tb.SetTangent(pa, pqa, pqb);
+                    tc.SetTangent(pa, pqb, pc);
+                }
+
+                triangles[contour.TriIndex] = ta;
+                ta.index = contour.TriIndex;
+                triangles.Add(tb);
+                tb.index = triangles.Count - 1;
+                triangles.Add(tc);
+                tc.index = triangles.Count - 1;
+                visited[contour.TriIndex] = true;
+                visited.Add(true);
+                visited.Add(false);
+
+                if (sa == SideOfPlane.UP)
+                {
+                    result.upperTri.Add(tb);
+                    //result.upperTri.Add(tc);
+                    result.lowerTri.Add(ta);
                 }
                 else
                 {
-                    //Debug.Log("6");
-                    Vector3 qa = contour.line.positionA;
-                    Vector3 qb = contour.line.positionB;
+                    result.upperTri.Add(ta);
+                    result.lowerTri.Add(tb);
+                    //result.lowerTri.Add(tc);
+                }
+            }
+            else if (contour.flag == 5)
+            {
+                //Debug.Log("5");
+                Vector3D qa = contour.line.positionA;
+                Vector3D qb = contour.line.positionB;
 
-                    Triangle ta = new Triangle(qa, qb, c);
-                    Triangle tb = new Triangle(a, qb, qa);
-                    Triangle tc = new Triangle(a, b, qb);
+                Triangle ta = new Triangle(a, qa, qb);
+                Triangle tb = new Triangle(qa, b, c);
+                Triangle tc = new Triangle(qb, qa, c);
 
-                    // generate UV coordinates if there is any
-                    if (tri.hasUV)
-                    {
-                        // the computed UV coordinate if the intersection point
-                        Vector2 pqa = tri.GenerateUV(qa);
-                        Vector2 pqb = tri.GenerateUV(qb);
-                        Vector2 pa = tri.uvA;
-                        Vector2 pb = tri.uvB;
-                        Vector2 pc = tri.uvC;
+                // generate UV coordinates if there is any
+                if (tri.hasUV)
+                {
+                    // the computed UV coordinate if the intersection point
+                    Vector2 pqa = tri.GenerateUV(qa.ToVector3());
+                    Vector2 pqb = tri.GenerateUV(qb.ToVector3());
+                    Vector2 pa = tri.uvA;
+                    Vector2 pb = tri.uvB;
+                    Vector2 pc = tri.uvC;
 
-                        ta.SetUV(pqa, pqb, pc);
-                        tb.SetUV(pa, pqb, pqa);
-                        tc.SetUV(pa, pb, pqb);
-                    }
+                    ta.SetUV(pa, pqa, pqb);
+                    tb.SetUV(pqa, pb, pc);
+                    tc.SetUV(pqb, pqa, pc);
+                }
 
-                    // generate Normal coordinates if there is any
-                    if (tri.hasNormal)
-                    {
-                        // the computed Normal coordinate if the intersection point
-                        Vector3 pqa = tri.GenerateNormal(qa);
-                        Vector3 pqb = tri.GenerateNormal(qb);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
+                // generate Normal coordinates if there is any
+                if (tri.hasNormal)
+                {
+                    // the computed Normal coordinate if the intersection point
+                    Vector3D pqa = tri.GenerateNormal(qa.ToVector3());
+                    Vector3D pqb = tri.GenerateNormal(qb.ToVector3());
+                    Vector3D pa = tri.normalA;
+                    Vector3D pb = tri.normalB;
+                    Vector3D pc = tri.normalC;
 
-                        ta.SetNormal(pqa, pqb, pc);
-                        tb.SetNormal(pa, pqb, pqa);
-                        tc.SetNormal(pa, pb, pqb);
-                    }
+                    ta.SetNormal(pa, pqa, pqb);
+                    tb.SetNormal(pqa, pb, pc);
+                    tc.SetNormal(pqb, pqa, pc);
+                }
 
-                    // generate Tangent coordinates if there is any
-                    if (tri.hasTangent)
-                    {
-                        // the computed Tangent coordinate if the intersection point
-                        Vector4 pqa = tri.GenerateTangent(qa);
-                        Vector4 pqb = tri.GenerateTangent(qb);
-                        Vector4 pa = tri.tangentA;
-                        Vector4 pb = tri.tangentB;
-                        Vector4 pc = tri.tangentC;
+                // generate Tangent coordinates if there is any
+                if (tri.hasTangent)
+                {
+                    // the computed Tangent coordinate if the intersection point
+                    Vector4 pqa = tri.GenerateTangent(qa.ToVector3());
+                    Vector4 pqb = tri.GenerateTangent(qb.ToVector3());
+                    Vector4 pa = tri.tangentA;
+                    Vector4 pb = tri.tangentB;
+                    Vector4 pc = tri.tangentC;
 
-                        ta.SetTangent(pqa, pqb, pc);
-                        tb.SetTangent(pa, pqb, pqa);
-                        tc.SetTangent(pa, pb, pqb);
-                    }
+                    ta.SetTangent(pa, pqa, pqb);
+                    tb.SetTangent(pqa, pb, pc);
+                    tc.SetTangent(pqb, pqa, pc);
+                }
 
-                    triangles[contour.TriIndex] = ta;
-                    ta.index = contour.TriIndex;
-                    triangles.Add(tb);
-                    tb.index = triangles.Count - 1;
-                    triangles.Add(tc);
-                    tc.index = triangles.Count - 1;
-                    visited[contour.TriIndex] = true;
-                    visited.Add(true);
-                    visited.Add(false);
+                triangles[contour.TriIndex] = ta;
+                ta.index = contour.TriIndex;
+                triangles.Add(tb);
+                tb.index = triangles.Count - 1;
+                triangles.Add(tc);
+                tc.index = triangles.Count - 1;
+                visited[contour.TriIndex] = true;
+                visited.Add(false);
+                visited.Add(true);
 
-                    if (sa == SideOfPlane.UP)
-                    {
-                        result.upperTri.Add(tb);
-                        //result.upperTri.Add(tc);
-                        result.lowerTri.Add(ta);
-                    }
-                    else
-                    {
-                        result.upperTri.Add(ta);
-                        result.lowerTri.Add(tb);
-                        //result.lowerTri.Add(tc);
-                    }
+                if (sa == SideOfPlane.UP)
+                {
+                    result.upperTri.Add(ta);
+                    //result.lowerTri.Add(tb);
+                    result.lowerTri.Add(tc);
+                }
+                else
+                {
+                    //result.upperTri.Add(tb);
+                    result.upperTri.Add(tc);
+                    result.lowerTri.Add(ta);
                 }
             }
             else
             {
-                //Debug.Log("sliced2");
-                if (contour.flag == 1)
+                //Debug.Log("6");
+                Vector3D qa = contour.line.positionA;
+                Vector3D qb = contour.line.positionB;
+
+                Triangle ta = new Triangle(qa, qb, c);
+                Triangle tb = new Triangle(a, qb, qa);
+                Triangle tc = new Triangle(a, b, qb);
+
+                // generate UV coordinates if there is any
+                if (tri.hasUV)
                 {
-                    //Debug.Log("1");
-                    Vector3 qa = contour.line.positionB;
+                    // the computed UV coordinate if the intersection point
+                    Vector2 pqa = tri.GenerateUV(qa.ToVector3());
+                    Vector2 pqb = tri.GenerateUV(qb.ToVector3());
+                    Vector2 pa = tri.uvA;
+                    Vector2 pb = tri.uvB;
+                    Vector2 pc = tri.uvC;
 
-                    Triangle ta = new Triangle(a, b, qa);
-                    Triangle tb = new Triangle(a, qa, c);
-
-                    triangles[contour.TriIndex] = ta;
-                    ta.index =contour.TriIndex;
-                    triangles.Add(tb);
-                    tb.index =triangles.Count - 1;
-                    visited[contour.TriIndex] = true;
-                    visited.Add(true);
-
-                    // generate UV coordinates if there is any
-                    if (tri.hasUV)
-                    {
-                        // the computed UV coordinate if the intersection point
-                        Vector2 pq = tri.GenerateUV(qa);
-                        Vector2 pa = tri.uvA;
-                        Vector2 pb = tri.uvB;
-                        Vector2 pc = tri.uvC;
-
-                        ta.SetUV(pa, pb, pq);
-                        tb.SetUV(pa, pq, pc);
-                    }
-
-                    // generate Normal coordinates if there is any
-                    if (tri.hasNormal)
-                    {
-                        // the computed Normal coordinate if the intersection point
-                        Vector3 pq = tri.GenerateNormal(qa);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
-
-                        ta.SetNormal(pa, pb, pq);
-                        tb.SetNormal(pa, pq, pc);
-                    }
-
-                    // generate Tangent coordinates if there is any
-                    if (tri.hasTangent)
-                    {
-                        // the computed Tangent coordinate if the intersection point
-                        Vector4 pq = tri.GenerateTangent(qa);
-                        Vector4 pa = tri.tangentA;
-                        Vector4 pb = tri.tangentB;
-                        Vector4 pc = tri.tangentC;
-
-                        ta.SetTangent(pa, pb, pq);
-                        tb.SetTangent(pa, pq, pc);
-                    }
-
-                    // b point lies on the upside of the plane
-                    if (sb == SideOfPlane.UP)
-                    {
-                        result.upperTri.Add(ta);
-                        result.lowerTri.Add(tb);
-                    }
-
-                    // b point lies on the downside of the plane
-                    else if (sb == SideOfPlane.DOWN)
-                    {
-                        result.upperTri.Add(tb);//将新三角形加入搜索列表
-                        result.lowerTri.Add(ta);
-                    }
+                    ta.SetUV(pqa, pqb, pc);
+                    tb.SetUV(pa, pqb, pqa);
+                    tc.SetUV(pa, pb, pqb);
                 }
-                else if (contour.flag == 2)
+
+                // generate Normal coordinates if there is any
+                if (tri.hasNormal)
                 {
-                    //Debug.Log("2");
-                    Vector3 qa = contour.line.positionB;
+                    // the computed Normal coordinate if the intersection point
+                    Vector3D pqa = tri.GenerateNormal(qa.ToVector3());
+                    Vector3D pqb = tri.GenerateNormal(qb.ToVector3());
+                    Vector3D pa = tri.normalA;
+                    Vector3D pb = tri.normalB;
+                    Vector3D pc = tri.normalC;
 
-                    Triangle ta = new Triangle(a, b, qa);
-                    Triangle tb = new Triangle(qa, b, c);
-
-                    triangles[contour.TriIndex] = ta;
-                    ta.index = contour.TriIndex;
-                    triangles.Add(tb);
-                    tb.index = triangles.Count - 1;
-                    visited[contour.TriIndex] = true;
-                    visited.Add(true);
-
-                    // generate UV coordinates if there is any
-                    if (tri.hasUV)
-                    {
-                        // the computed UV coordinate if the intersection point
-                        Vector2 pq = tri.GenerateUV(qa);
-                        Vector2 pa = tri.uvA;
-                        Vector2 pb = tri.uvB;
-                        Vector2 pc = tri.uvC;
-
-                        ta.SetUV(pa, pb, pq);
-                        tb.SetUV(pq, pb, pc);
-                    }
-
-                    // generate Normal coordinates if there is any
-                    if (tri.hasNormal)
-                    {
-                        // the computed Normal coordinate if the intersection point
-                        Vector3 pq = tri.GenerateNormal(qa);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
-
-                        ta.SetNormal(pa, pb, pq);
-                        tb.SetNormal(pq, pb, pc);
-                    }
-
-                    // generate Tangent coordinates if there is any
-                    if (tri.hasTangent)
-                    {
-                        // the computed Tangent coordinate if the intersection point
-                        Vector4 pq = tri.GenerateTangent(qa);
-                        Vector4 pa = tri.tangentA;
-                        Vector4 pb = tri.tangentB;
-                        Vector4 pc = tri.tangentC;
-
-                        ta.SetTangent(pa, pb, pq);
-                        tb.SetTangent(pq, pb, pc);
-                    }
-
-                    // a point lies on the upside of the plane
-                    if (sa == SideOfPlane.UP)
-                    {
-                        result.upperTri.Add(ta);
-                        result.lowerTri.Add(tb);
-                    }
-
-                    // a point lies on the downside of the plane
-                    else if (sa == SideOfPlane.DOWN)
-                    {
-                        result.upperTri.Add(tb);
-                        result.lowerTri.Add(ta);
-                    }
+                    ta.SetNormal(pqa, pqb, pc);
+                    tb.SetNormal(pa, pqb, pqa);
+                    tc.SetNormal(pa, pb, pqb);
                 }
-                else if (contour.flag == 3)
+
+                // generate Tangent coordinates if there is any
+                if (tri.hasTangent)
                 {
-                    //Debug.Log("3");
-                    Vector3 qa = contour.line.positionB;
+                    // the computed Tangent coordinate if the intersection point
+                    Vector4 pqa = tri.GenerateTangent(qa.ToVector3());
+                    Vector4 pqb = tri.GenerateTangent(qb.ToVector3());
+                    Vector4 pa = tri.tangentA;
+                    Vector4 pb = tri.tangentB;
+                    Vector4 pc = tri.tangentC;
 
-                    Triangle ta = new Triangle(a, qa, c);
-                    Triangle tb = new Triangle(qa, b, c);
-
-                    triangles[contour.TriIndex] = ta;
-                    ta.index = contour.TriIndex;
-                    triangles.Add(tb);
-                    tb.index = triangles.Count - 1;
-                    visited[contour.TriIndex] = true;
-                    visited.Add(true);
-
-                    // generate UV coordinates if there is any
-                    if (tri.hasUV)
-                    {
-                        // the computed UV coordinate if the intersection point
-                        Vector2 pq = tri.GenerateUV(qa);
-                        Vector2 pa = tri.uvA;
-                        Vector2 pb = tri.uvB;
-                        Vector2 pc = tri.uvC;
-
-                        ta.SetUV(pa, pq, pc);
-                        tb.SetUV(pq, pb, pc);
-                    }
-
-                    // generate Normal coordinates if there is any
-                    if (tri.hasNormal)
-                    {
-                        // the computed Normal coordinate if the intersection point
-                        Vector3 pq = tri.GenerateNormal(qa);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
-
-                        ta.SetNormal(pa, pq, pc);
-                        tb.SetNormal(pq, pb, pc);
-                    }
-
-                    // generate Tangent coordinates if there is any
-                    if (tri.hasTangent)
-                    {
-                        // the computed Tangent coordinate if the intersection point
-                        Vector4 pq = tri.GenerateTangent(qa);
-                        Vector4 pa = tri.tangentA;
-                        Vector4 pb = tri.tangentB;
-                        Vector4 pc = tri.tangentC;
-
-                        ta.SetTangent(pa, pq, pc);
-                        tb.SetTangent(pq, pb, pc);
-                    }
-
-                    // a point lies on the upside of the plane
-                    if (sa == SideOfPlane.UP)
-                    {
-                        result.upperTri.Add(ta);
-                        result.lowerTri.Add(tb);
-                    }
-
-                    // a point lies on the downside of the plane
-                    else if (sa == SideOfPlane.DOWN)
-                    {
-                        result.upperTri.Add(tb);
-                        result.lowerTri.Add(ta);
-                    }
+                    ta.SetTangent(pqa, pqb, pc);
+                    tb.SetTangent(pa, pqb, pqa);
+                    tc.SetTangent(pa, pb, pqb);
                 }
-                else if (contour.flag == 4)
+
+                triangles[contour.TriIndex] = ta;
+                ta.index = contour.TriIndex;
+                triangles.Add(tb);
+                tb.index = triangles.Count - 1;
+                triangles.Add(tc);
+                tc.index = triangles.Count - 1;
+                visited[contour.TriIndex] = true;
+                visited.Add(true);
+                visited.Add(false);
+
+                if (sa == SideOfPlane.UP)
                 {
-                    //Debug.Log("4");
-                    Vector3 qa = contour.line.positionB;
-                    Vector3 qb = contour.line.positionA;
-
-                    Triangle ta = new Triangle(qa, b, qb);
-                    Triangle tb = new Triangle(a, qa, qb);
-                    Triangle tc = new Triangle(a, qb, c);
-
-                    // generate UV coordinates if there is any
-                    if (tri.hasUV)
-                    {
-                        // the computed UV coordinate if the intersection point
-                        Vector2 pqa = tri.GenerateUV(qa);
-                        Vector2 pqb = tri.GenerateUV(qb);
-                        Vector2 pa = tri.uvA;
-                        Vector2 pb = tri.uvB;
-                        Vector2 pc = tri.uvC;
-
-                        ta.SetUV(pqa, pb, pqb);
-                        tb.SetUV(pa, pqa, pqb);
-                        tc.SetUV(pa, pqb, pc);
-                    }
-
-                    // generate Normal coordinates if there is any
-                    if (tri.hasNormal)
-                    {
-                        // the computed Normal coordinate if the intersection point
-                        Vector3 pqa = tri.GenerateNormal(qa);
-                        Vector3 pqb = tri.GenerateNormal(qb);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
-
-                        ta.SetNormal(pqa, pb, pqb);
-                        tb.SetNormal(pa, pqa, pqb);
-                        tc.SetNormal(pa, pqb, pc);
-                    }
-
-                    // generate Tangent coordinates if there is any
-                    if (tri.hasTangent)
-                    {
-                        // the computed Tangent coordinate if the intersection point
-                        Vector4 pqa = tri.GenerateTangent(qa);
-                        Vector4 pqb = tri.GenerateTangent(qb);
-                        Vector4 pa = tri.tangentA;
-                        Vector4 pb = tri.tangentB;
-                        Vector4 pc = tri.tangentC;
-
-                        ta.SetTangent(pqa, pb, pqb);
-                        tb.SetTangent(pa, pqa, pqb);
-                        tc.SetTangent(pa, pqb, pc);
-                    }
-
-                    triangles[contour.TriIndex] = ta;
-                    ta.index = contour.TriIndex;
-                    triangles.Add(tb);
-                    tb.index = triangles.Count - 1;
-                    triangles.Add(tc);
-                    tc.index = triangles.Count - 1;
-                    visited[contour.TriIndex] = true;
-                    visited.Add(true);
-                    visited.Add(false);
-
-                    if (sa == SideOfPlane.UP)
-                    {
-                        result.upperTri.Add(tb);
-                        //result.upperTri.Add(tc);
-                        result.lowerTri.Add(ta);
-                    }
-                    else
-                    {
-                        result.upperTri.Add(ta);
-                        result.lowerTri.Add(tb);
-                        //result.lowerTri.Add(tc);
-                    }
-                }
-                else if (contour.flag == 5)
-                {
-                    //Debug.Log("5");
-                    Vector3 qa = contour.line.positionB;
-                    Vector3 qb = contour.line.positionA;
-
-                    Triangle ta = new Triangle(a, qa, qb);
-                    Triangle tb = new Triangle(qa, b, c);
-                    Triangle tc = new Triangle(qb, qa, c);
-                    
-                    // generate UV coordinates if there is any
-                    if (tri.hasUV)
-                    {
-                        // the computed UV coordinate if the intersection point
-                        Vector2 pqa = tri.GenerateUV(qa);
-                        Vector2 pqb = tri.GenerateUV(qb);
-                        Vector2 pa = tri.uvA;
-                        Vector2 pb = tri.uvB;
-                        Vector2 pc = tri.uvC;
-
-                        ta.SetUV(pa, pqa, pqb);
-                        tb.SetUV(pqa, pb, pc);
-                        tc.SetUV(pqb, pqa, pc);
-                    }
-                    // generate Normal coordinates if there is any
-                    if (tri.hasNormal)
-                    {
-                        // the computed Normal coordinate if the intersection point
-                        Vector3 pqa = tri.GenerateNormal(qa);
-                        Vector3 pqb = tri.GenerateNormal(qb);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
-
-                        ta.SetNormal(pa, pqa, pqb);
-                        tb.SetNormal(pqa, pb, pc);
-                        tc.SetNormal(pqb, pqa, pc);
-                    }
-                    // generate Tangent coordinates if there is any
-                    if (tri.hasTangent)
-                    {
-                        // the computed Tangent coordinate if the intersection point
-                        Vector4 pqa = tri.GenerateTangent(qa);
-                        Vector4 pqb = tri.GenerateTangent(qb);
-                        Vector4 pa = tri.tangentA;
-                        Vector4 pb = tri.tangentB;
-                        Vector4 pc = tri.tangentC;
-
-                        ta.SetTangent(pa, pqa, pqb);
-                        tb.SetTangent(pqa, pb, pc);
-                        tc.SetTangent(pqb, pqa, pc);
-                    }
-
-                    triangles[contour.TriIndex] = ta;
-                    ta.index = contour.TriIndex;
-                    triangles.Add(tb);
-                    tb.index = triangles.Count - 1;
-                    triangles.Add(tc);
-                    tc.index = triangles.Count - 1;
-                    visited[contour.TriIndex] = true;
-                    visited.Add(false);
-                    visited.Add(true);
-
-                    if (sa == SideOfPlane.UP)
-                    {
-                        result.upperTri.Add(ta);
-                        //result.lowerTri.Add(tb);
-                        result.lowerTri.Add(tc);
-                    }
-                    else
-                    {
-                        //result.upperTri.Add(tb);
-                        result.upperTri.Add(tc);
-                        result.lowerTri.Add(ta);
-                    }
+                    result.upperTri.Add(tb);
+                    //result.upperTri.Add(tc);
+                    result.lowerTri.Add(ta);
                 }
                 else
                 {
-                    //Debug.Log("6");
-                    Vector3 qa = contour.line.positionB;
-                    Vector3 qb = contour.line.positionA;
-
-                    Triangle ta = new Triangle(qa, qb, c);
-                    Triangle tb = new Triangle(a, qb, qa);
-                    Triangle tc = new Triangle(a, b, qb);
-
-                    // generate UV coordinates if there is any
-                    if (tri.hasUV)
-                    {
-                        // the computed UV coordinate if the intersection point
-                        Vector2 pqa = tri.GenerateUV(qa);
-                        Vector2 pqb = tri.GenerateUV(qb);
-                        Vector2 pa = tri.uvA;
-                        Vector2 pb = tri.uvB;
-                        Vector2 pc = tri.uvC;
-
-                        ta.SetUV(pqa, pqb, pc);
-                        tb.SetUV(pa, pqb, pqa);
-                        tc.SetUV(pa, pb, pqb);
-                    }
-
-                    // generate Normal coordinates if there is any
-                    if (tri.hasNormal)
-                    {
-                        // the computed Normal coordinate if the intersection point
-                        Vector3 pqa = tri.GenerateNormal(qa);
-                        Vector3 pqb = tri.GenerateNormal(qb);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
-
-                        ta.SetNormal(pqa, pqb, pc);
-                        tb.SetNormal(pa, pqb, pqa);
-                        tc.SetNormal(pa, pb, pqb);
-                    }
-
-                    // generate Tangent coordinates if there is any
-                    if (tri.hasTangent)
-                    {
-                        // the computed Tangent coordinate if the intersection point
-                        Vector4 pqa = tri.GenerateTangent(qa);
-                        Vector4 pqb = tri.GenerateTangent(qb);
-                        Vector4 pa = tri.tangentA;
-                        Vector4 pb = tri.tangentB;
-                        Vector4 pc = tri.tangentC;
-
-                        ta.SetTangent(pqa, pqb, pc);
-                        tb.SetTangent(pa, pqb, pqa);
-                        tc.SetTangent(pa, pb, pqb);
-                    }
-
-                    triangles[contour.TriIndex] = ta;
-                    ta.index = contour.TriIndex;
-                    triangles.Add(tb);
-                    tb.index = triangles.Count - 1;
-                    triangles.Add(tc);
-                    tc.index = triangles.Count - 1;
-                    visited[contour.TriIndex] = true;
-                    visited.Add(true);
-                    visited.Add(false);
-
-                    if (sa == SideOfPlane.UP)
-                    {
-                        result.upperTri.Add(tb);
-                        //result.upperTri.Add(tc);
-                        result.lowerTri.Add(ta);
-                    }
-                    else
-                    {
-                        result.upperTri.Add(ta);
-                        result.lowerTri.Add(tb);
-                        //result.lowerTri.Add(tc);
-                    }
+                    result.upperTri.Add(ta);
+                    result.lowerTri.Add(tb);
+                    //result.lowerTri.Add(tc);
                 }
             }
         }
