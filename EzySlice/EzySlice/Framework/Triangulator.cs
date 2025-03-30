@@ -136,12 +136,14 @@ namespace EzySlice
                         if (flip)
                         {
                             newTriangle = new Triangle(mapped[next].originalValue, mapped[curr].originalValue, mapped[prev].originalValue);
+                            newTriangle.SetUV(texRegion.Map(uvC), texRegion.Map(uvB), texRegion.Map(uvA));
                         }
                         else
                         {
                             newTriangle = new Triangle(mapped[prev].originalValue, mapped[curr].originalValue, mapped[next].originalValue);
+                            newTriangle.SetUV(texRegion.Map(uvA), texRegion.Map(uvB), texRegion.Map(uvC));
                         }
-                        newTriangle.SetUV(texRegion.Map(uvA), texRegion.Map(uvB), texRegion.Map(uvC));
+                        
                         newTriangle.SetNormal(normal, normal, normal);
                         newTriangle.ComputeTangents();
 
