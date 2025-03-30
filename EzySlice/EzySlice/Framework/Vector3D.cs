@@ -11,7 +11,7 @@ namespace Ezyslice
         public double y;
         public double z;
 
-        private static readonly double epsilon = 1e-5; // 误差容忍度，可调
+        private static readonly double epsilon = 1e-3; // 误差容忍度，可调
 
         public Vector3D(double x, double y, double z)
         {
@@ -57,9 +57,9 @@ namespace Ezyslice
             unchecked
             {
                 // 将坐标四舍五入到 epsilon 精度倍数，减少误差影响
-                long rx = (long)Math.Round(x / epsilon);
-                long ry = (long)Math.Round(y / epsilon);
-                long rz = (long)Math.Round(z / epsilon);
+                long rx = (long)(x / epsilon);
+                long ry = (long)(y / epsilon);
+                long rz = (long)(z / epsilon);
 
                 int hash = 17;
                 hash = hash * 31 + rx.GetHashCode();
@@ -93,7 +93,7 @@ namespace Ezyslice
         {
             double length = Magnitude(v);
             if (length < 1e-10)  // 避免除零
-                throw new InvalidOperationException("Cannot normalize a zero vector.");
+                return v;
             return new Vector3D(v.x / length, v.y / length, v.z / length);
         }
 
@@ -151,6 +151,11 @@ namespace Ezyslice
         public static Vector3D operator -(Vector3D v)
         {
             return new Vector3D(-v.x, -v.y, -v.z);
+        }
+
+        public override string ToString()
+        {
+            return $"({x:F6}, {y:F6}, {z:F6})";
         }
     }
 }

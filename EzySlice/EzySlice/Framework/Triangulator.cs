@@ -2,14 +2,19 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Ezyslice;
+using System.Linq;
+using UnityEditor.Tilemaps;
 
-namespace EzySlice {
+namespace EzySlice
+{
 
     /**
      * Contains static functionality for performing Triangulation on arbitrary vertices.
      * Read the individual function descriptions for specific details.
      */
-    public sealed class Triangulator {
+    public sealed class Triangulator
+    {
 
         /**
          * Represents a 3D Vertex which has been mapped onto a 2D surface
@@ -17,30 +22,32 @@ namespace EzySlice {
          * against a flat plane.
          */
         //将三维点投影到二维平面
-        internal struct Mapped2D {
-            private readonly Vector3 original;
+        internal struct Mapped2D
+        {
+            private readonly Vector3D original;
             private readonly Vector2 mapped;
 
-            public Mapped2D(Vector3 newOriginal, Vector3 u, Vector3 v) {
+            public Mapped2D(Vector3D newOriginal, Vector3D u, Vector3D v)
+            {
                 this.original = newOriginal;
-                this.mapped = new Vector2(Vector3.Dot(newOriginal, u), Vector3.Dot(newOriginal, v));
+                this.mapped = new Vector2((float)Vector3D.Dot(newOriginal, u), (float)Vector3D.Dot(newOriginal, v));
             }
 
-            public Vector2 mappedValue {
+            public Vector2 mappedValue
+            {
                 get { return this.mapped; }
             }
 
-            public Vector3 originalValue {
+            public Vector3D originalValue
+            {
                 get { return this.original; }
             }
         }
 
         //对轮廓三角形化
         //输入有顺序的轮廓点集、平面法线，输出三角形集
-        public static bool Triangulate(List<Vector3> vertices, Vector3 normal, out List<Triangle> tri, TextureRegion texRegion)
+        public static bool Triangulate(List<Vector3D> vertices, Vector3D normal, out List<Triangle> tri, TextureRegion texRegion, bool flip)
         {
-            //vertices.Reverse();
-
             int count = vertices.Count;
 
             if (count < 3)
@@ -57,12 +64,12 @@ namespace EzySlice {
             }
 
             //创建平面上的正交向量
-            Vector3 u = Vector3.Normalize(Vector3.Cross(normal, Vector3.up));
-            if (Vector3.zero == u)
+            Vector3D u = Vector3D.Normalize(Vector3D.Cross(normal, new Vector3D(Vector3.up)));
+            if (new Vector3D(Vector3.zero) == u)
             {//防止法线与上方向平行
-                u = Vector3.Normalize(Vector3.Cross(normal, Vector3.forward));
+                u = Vector3D.Normalize(Vector3D.Cross(normal, new Vector3D(Vector3.forward)));
             }
-            Vector3 v = Vector3.Cross(u, normal);
+            Vector3D v = Vector3D.Cross(u, normal);
 
             //创建投影操作的数组
             Mapped2D[] mapped = new Mapped2D[count];
@@ -74,7 +81,7 @@ namespace EzySlice {
             //投影到二维平面
             for (int i = 0; i < count; i++)
             {
-                Vector3 vertToAdd = vertices[i];
+                Vector3D vertToAdd = new Vector3D(vertices[i]);
 
                 Mapped2D newMappedValue = new Mapped2D(vertToAdd, u, v);
                 Vector2 mapVal = newMappedValue.mappedValue;
@@ -90,9 +97,9 @@ namespace EzySlice {
             float width = maxDivX - minDivX;
             float height = maxDivY - minDivY;
 
-//AI算法需检查
+            //AI算法需检查
             //耳切法
-            while (indices.Count >= 3)
+            while (indices.Count > 3)
             {
                 bool earFound = false;
                 for (int i = 0; i < indices.Count; i++)
@@ -106,7 +113,7 @@ namespace EzySlice {
                     Vector2 b = mapped[curr].mappedValue;
                     Vector2 c = mapped[next].mappedValue;
 
-                    if (IsConvex(a, b, c) && !ContainsPoint(mapped, indices, a, b, c))
+                    if (IsConvex(a, b, c, flip) && !ContainsPoint(mapped, indices, a, b, c))
                     {
                         //获取点的uv位置
                         Vector2 uvA = mapped[prev].mappedValue;
@@ -123,8 +130,17 @@ namespace EzySlice {
                         uvC.x = (uvC.x - minDivX) / width;
                         uvC.y = (uvC.y - minDivY) / height;
 
+                        Triangle newTriangle;
+
                         //以三维坐标创建三角形
-                        Triangle newTriangle = new Triangle(mapped[prev].originalValue, mapped[curr].originalValue, mapped[next].originalValue);
+                        if (flip)
+                        {
+                            newTriangle = new Triangle(mapped[next].originalValue, mapped[curr].originalValue, mapped[prev].originalValue);
+                        }
+                        else
+                        {
+                            newTriangle = new Triangle(mapped[prev].originalValue, mapped[curr].originalValue, mapped[next].originalValue);
+                        }
                         newTriangle.SetUV(texRegion.Map(uvA), texRegion.Map(uvB), texRegion.Map(uvC));
                         newTriangle.SetNormal(normal, normal, normal);
                         newTriangle.ComputeTangents();
@@ -142,7 +158,7 @@ namespace EzySlice {
                     break;
                 }
             }
-            
+
             if (indices.Count == 3)
             {
                 //获取点的uv位置
@@ -169,20 +185,35 @@ namespace EzySlice {
                 //将新生成的三角形加入输出网格
                 tri.Add(newTriangle);
             }
-            if (tri.Count != count - 2)
+            if (tri.Count != count - 2 )
             {
-                vertices.Reverse();
-                if (!Triangulate(vertices, normal, out tri, texRegion))
+                if(flip == false)
                 {
-                    return false; // 避免无限递归
+                    tri.Clear();
+                    return Triangulate(vertices, normal, out tri, texRegion , true);
                 }
+                return false;
             }
             return true;
         }
 
-        private static bool IsConvex(Vector2 a, Vector2 b, Vector2 c)
+
+        private static bool IsConvex(Vector2 a, Vector2 b, Vector2 c, bool flip)
         {
-            return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x) > 0;
+            if (flip)
+            {
+                return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x) <= 0;
+            }
+            else
+            {
+                return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x) > 0;
+            }
+        }
+
+        private static bool IsEqual(Vector2 a, Vector2 b)
+        {
+            double e = 5e-3f;
+            return Math.Abs(a.x - b.x) < e && Math.Abs(a.y - b.y) < e;
         }
 
         private static bool ContainsPoint(Mapped2D[] polygon, List<int> indices, Vector2 a, Vector2 b, Vector2 c)
@@ -190,7 +221,7 @@ namespace EzySlice {
             for (int i = 0; i < indices.Count; i++)
             {
                 Vector2 p = polygon[indices[i]].mappedValue;
-                if (p != a && p != b && p != c && IsPointInTriangle(p, a, b, c))
+                if ((!IsEqual(p , a)) && (!IsEqual(p, b)) && (!IsEqual(p, c)) && IsPointInTriangle(p, a, b, c))
                 {
                     return true;
                 }
@@ -200,16 +231,19 @@ namespace EzySlice {
 
         private static bool IsPointInTriangle(Vector2 p, Vector2 a, Vector2 b, Vector2 c)
         {
-            float area = 0.5f * (-b.y * c.x + a.y * (-b.x + c.x) + a.x * (b.y - c.y) + b.x * c.y);
+            float d1 = Sign(p, a, b);
+            float d2 = Sign(p, b, c);
+            float d3 = Sign(p, c, a);
 
-            if (Mathf.Abs(area) < 1e-6f) return false;  // 避免除零错误
+            bool has_neg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+            bool has_pos = (d1 > 0) || (d2 > 0) || (d3 > 0);
 
-            float invDenom = 1.0f / (2.0f * area);
-            float s = ((a.y * c.x - a.x * c.y) + (c.y - a.y) * p.x + (a.x - c.x) * p.y) * invDenom;
-            float t = ((a.x * b.y - a.y * b.x) + (a.y - b.y) * p.x + (b.x - a.x) * p.y) * invDenom;
-
-            return s >= 0 && t >= 0 && (1 - s - t) >= 0;
+            return !(has_neg && has_pos);
         }
 
+        private static float Sign(Vector2 p1, Vector2 p2, Vector2 p3)
+        {
+            return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+        }
     }
 }

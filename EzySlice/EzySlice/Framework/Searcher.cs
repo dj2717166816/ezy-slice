@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
+using Ezyslice;
 
 namespace EzySlice
 {
@@ -38,9 +39,9 @@ namespace EzySlice
 
         private void Search(Triangle tri)
         {
-            Vector3 a = tri.positionA;
-            Vector3 b = tri.positionB;
-            Vector3 c = tri.positionC;
+            Vector3D a = tri.positionA;
+            Vector3D b = tri.positionB;
+            Vector3D c = tri.positionC;
             Line[] lines = { new Line(a, b), new Line(b, c), new Line(c, a) };
 
             foreach (Line line in lines)

@@ -1,3 +1,4 @@
+using Ezyslice;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -11,20 +12,22 @@ namespace EzySlice {
 
         public const float Epsilon = 0.001f;
 
-        public static bool Intersect(Plane pl, Vector3 a, Vector3 b, out Vector3 q) {
-            Vector3 normal = pl.normal;
-            Vector3 ab = b - a;
+        public static bool Intersect(Plane pl, Vector3D a, Vector3D b, out Vector3D q)
+        {
+            Vector3D normal = pl.normal;
+            Vector3D ab = new Vector3D(b.x - a.x, b.y - a.y, b.z - a.z);
 
-            float t = (pl.dist - Vector3.Dot(normal, a)) / Vector3.Dot(normal, ab);
+            double t = (pl.dist - Vector3D.Dot(normal, a)) / Vector3D.Dot(normal, ab);
 
             // need to be careful and compensate for floating errors
-            if (t >= -Epsilon && t <= (1 + Epsilon)) {
-                q = a + t * ab;
+            if (t >= -Epsilon && t <= (1 + Epsilon))
+            {
+                q = new Vector3D(a.x + ab.x * t, a.y + ab.y * t, a.z + ab.z * t);
 
                 return true;
             }
 
-            q = Vector3.zero;
+            q = new Vector3D(Vector3.zero);
 
             return false;
         }
@@ -37,9 +40,9 @@ namespace EzySlice {
         //计算切割出的线段，并与三角形编号一同传入CuttingLineAndTri，这里传入的Line中的点顺序可能发生变化，不能直接用在后边切割，要用flip判断是否顺序翻转
         public static void Cutting(Plane pl, Triangle tri, int index, IntersectionResult result)
         {
-            Vector3 a = tri.positionA;
-            Vector3 b = tri.positionB;
-            Vector3 c = tri.positionC;
+            Vector3D a = tri.positionA;
+            Vector3D b = tri.positionB;
+            Vector3D c = tri.positionC;
 
             SideOfPlane sa = pl.SideOf(a);
             SideOfPlane sb = pl.SideOf(b);
@@ -108,8 +111,8 @@ namespace EzySlice {
             }
 
             //切割获得两个交点
-            Vector3 qa;
-            Vector3 qb;
+            Vector3D qa;
+            Vector3D qb;
 
             //一点在平面上，其他两点位于两侧
             //a在平面上
@@ -179,9 +182,9 @@ namespace EzySlice {
             }
 
             Triangle tri = triangles[contour.TriIndex];
-            Vector3 a = tri.positionA;
-            Vector3 b = tri.positionB;
-            Vector3 c = tri.positionC;
+            Vector3D a = tri.positionA;
+            Vector3D b = tri.positionB;
+            Vector3D c = tri.positionC;
             SideOfPlane sa = pl.SideOf(a);
             SideOfPlane sb = pl.SideOf(b);
             SideOfPlane sc = pl.SideOf(c);
@@ -192,7 +195,7 @@ namespace EzySlice {
                 if (contour.flag == 1)
                 {
                     //Debug.Log("1");
-                    Vector3 qa = contour.line.positionA;
+                    Vector3D qa = contour.line.positionA;
 
                     Triangle ta = new Triangle(a, b, qa);
                     Triangle tb = new Triangle(a, qa, c);
@@ -209,7 +212,7 @@ namespace EzySlice {
                     if (tri.hasUV)
                     {
                         // the computed UV coordinate if the intersection point
-                        Vector2 pq = tri.GenerateUV(qa);
+                        Vector2 pq = tri.GenerateUV(qa.ToVector3());
                         Vector2 pa = tri.uvA;
                         Vector2 pb = tri.uvB;
                         Vector2 pc = tri.uvC;
@@ -222,10 +225,10 @@ namespace EzySlice {
                     if (tri.hasNormal)
                     {
                         // the computed Normal coordinate if the intersection point
-                        Vector3 pq = tri.GenerateNormal(qa);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
+                        Vector3D pq = tri.GenerateNormal(qa.ToVector3());
+                        Vector3D pa = tri.normalA;
+                        Vector3D pb = tri.normalB;
+                        Vector3D pc = tri.normalC;
 
                         ta.SetNormal(pa, pb, pq);
                         tb.SetNormal(pa, pq, pc);
@@ -235,7 +238,7 @@ namespace EzySlice {
                     if (tri.hasTangent)
                     {
                         // the computed Tangent coordinate if the intersection point
-                        Vector4 pq = tri.GenerateTangent(qa);
+                        Vector4 pq = tri.GenerateTangent(qa.ToVector3());
                         Vector4 pa = tri.tangentA;
                         Vector4 pb = tri.tangentB;
                         Vector4 pc = tri.tangentC;
@@ -261,7 +264,7 @@ namespace EzySlice {
                 else if (contour.flag == 2)
                 {
                     //Debug.Log("2");
-                    Vector3 qa = contour.line.positionA;
+                    Vector3D qa = contour.line.positionA;
 
                     Triangle ta = new Triangle(a, b, qa);
                     Triangle tb = new Triangle(qa, b, c);
@@ -277,7 +280,7 @@ namespace EzySlice {
                     if (tri.hasUV)
                     {
                         // the computed UV coordinate if the intersection point
-                        Vector2 pq = tri.GenerateUV(qa);
+                        Vector2 pq = tri.GenerateUV(qa.ToVector3());
                         Vector2 pa = tri.uvA;
                         Vector2 pb = tri.uvB;
                         Vector2 pc = tri.uvC;
@@ -290,10 +293,10 @@ namespace EzySlice {
                     if (tri.hasNormal)
                     {
                         // the computed Normal coordinate if the intersection point
-                        Vector3 pq = tri.GenerateNormal(qa);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
+                        Vector3D pq = tri.GenerateNormal(qa.ToVector3());
+                        Vector3D pa = tri.normalA;
+                        Vector3D pb = tri.normalB;
+                        Vector3D pc = tri.normalC;
 
                         ta.SetNormal(pa, pb, pq);
                         tb.SetNormal(pq, pb, pc);
@@ -303,7 +306,7 @@ namespace EzySlice {
                     if (tri.hasTangent)
                     {
                         // the computed Tangent coordinate if the intersection point
-                        Vector4 pq = tri.GenerateTangent(qa);
+                        Vector4 pq = tri.GenerateTangent(qa.ToVector3());
                         Vector4 pa = tri.tangentA;
                         Vector4 pb = tri.tangentB;
                         Vector4 pc = tri.tangentC;
@@ -329,7 +332,7 @@ namespace EzySlice {
                 else if (contour.flag == 3)
                 {
                     //Debug.Log("3");
-                    Vector3 qa = contour.line.positionA;
+                    Vector3D qa = contour.line.positionA;
 
                     Triangle ta = new Triangle(a, qa, c);
                     Triangle tb = new Triangle(qa, b, c);
@@ -345,7 +348,7 @@ namespace EzySlice {
                     if (tri.hasUV)
                     {
                         // the computed UV coordinate if the intersection point
-                        Vector2 pq = tri.GenerateUV(qa);
+                        Vector2 pq = tri.GenerateUV(qa.ToVector3());
                         Vector2 pa = tri.uvA;
                         Vector2 pb = tri.uvB;
                         Vector2 pc = tri.uvC;
@@ -358,10 +361,10 @@ namespace EzySlice {
                     if (tri.hasNormal)
                     {
                         // the computed Normal coordinate if the intersection point
-                        Vector3 pq = tri.GenerateNormal(qa);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
+                        Vector3D pq = tri.GenerateNormal(qa.ToVector3());
+                        Vector3D pa = tri.normalA;
+                        Vector3D pb = tri.normalB;
+                        Vector3D pc = tri.normalC;
 
                         ta.SetNormal(pa, pq, pc);
                         tb.SetNormal(pq, pb, pc);
@@ -371,7 +374,7 @@ namespace EzySlice {
                     if (tri.hasTangent)
                     {
                         // the computed Tangent coordinate if the intersection point
-                        Vector4 pq = tri.GenerateTangent(qa);
+                        Vector4 pq = tri.GenerateTangent(qa.ToVector3());
                         Vector4 pa = tri.tangentA;
                         Vector4 pb = tri.tangentB;
                         Vector4 pc = tri.tangentC;
@@ -397,8 +400,8 @@ namespace EzySlice {
                 else if (contour.flag == 4)
                 {
                     //Debug.Log("4");
-                    Vector3 qa = contour.line.positionA;
-                    Vector3 qb = contour.line.positionB;
+                    Vector3D qa = contour.line.positionA;
+                    Vector3D qb = contour.line.positionB;
 
                     Triangle ta = new Triangle(qa, b, qb);
                     Triangle tb = new Triangle(a, qa, qb);
@@ -408,8 +411,8 @@ namespace EzySlice {
                     if (tri.hasUV)
                     {
                         // the computed UV coordinate if the intersection point
-                        Vector2 pqa = tri.GenerateUV(qa);
-                        Vector2 pqb = tri.GenerateUV(qb);
+                        Vector2 pqa = tri.GenerateUV(qa.ToVector3());
+                        Vector2 pqb = tri.GenerateUV(qb.ToVector3());
                         Vector2 pa = tri.uvA;
                         Vector2 pb = tri.uvB;
                         Vector2 pc = tri.uvC;
@@ -423,11 +426,11 @@ namespace EzySlice {
                     if (tri.hasNormal)
                     {
                         // the computed Normal coordinate if the intersection point
-                        Vector3 pqa = tri.GenerateNormal(qa);
-                        Vector3 pqb = tri.GenerateNormal(qb);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
+                        Vector3D pqa = tri.GenerateNormal(qa.ToVector3());
+                        Vector3D pqb = tri.GenerateNormal(qb.ToVector3());
+                        Vector3D pa = tri.normalA;
+                        Vector3D pb = tri.normalB;
+                        Vector3D pc = tri.normalC;
 
                         ta.SetNormal(pqa, pb, pqb);
                         tb.SetNormal(pa, pqa, pqb);
@@ -438,8 +441,8 @@ namespace EzySlice {
                     if (tri.hasTangent)
                     {
                         // the computed Tangent coordinate if the intersection point
-                        Vector4 pqa = tri.GenerateTangent(qa);
-                        Vector4 pqb = tri.GenerateTangent(qb);
+                        Vector4 pqa = tri.GenerateTangent(qa.ToVector3());
+                        Vector4 pqb = tri.GenerateTangent(qb.ToVector3());
                         Vector4 pa = tri.tangentA;
                         Vector4 pb = tri.tangentB;
                         Vector4 pc = tri.tangentC;
@@ -475,8 +478,8 @@ namespace EzySlice {
                 else if (contour.flag == 5)
                 {
                     //Debug.Log("5");
-                    Vector3 qa = contour.line.positionA;
-                    Vector3 qb = contour.line.positionB;
+                    Vector3D qa = contour.line.positionA;
+                    Vector3D qb = contour.line.positionB;
 
                     Triangle ta = new Triangle(a, qa, qb);
                     Triangle tb = new Triangle(qa, b, c);
@@ -486,8 +489,8 @@ namespace EzySlice {
                     if (tri.hasUV)
                     {
                         // the computed UV coordinate if the intersection point
-                        Vector2 pqa = tri.GenerateUV(qa);
-                        Vector2 pqb = tri.GenerateUV(qb);
+                        Vector2 pqa = tri.GenerateUV(qa.ToVector3());
+                        Vector2 pqb = tri.GenerateUV(qb.ToVector3());
                         Vector2 pa = tri.uvA;
                         Vector2 pb = tri.uvB;
                         Vector2 pc = tri.uvC;
@@ -501,11 +504,11 @@ namespace EzySlice {
                     if (tri.hasNormal)
                     {
                         // the computed Normal coordinate if the intersection point
-                        Vector3 pqa = tri.GenerateNormal(qa);
-                        Vector3 pqb = tri.GenerateNormal(qb);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
+                        Vector3D pqa = tri.GenerateNormal(qa.ToVector3());
+                        Vector3D pqb = tri.GenerateNormal(qb.ToVector3());
+                        Vector3D pa = tri.normalA;
+                        Vector3D pb = tri.normalB;
+                        Vector3D pc = tri.normalC;
 
                         ta.SetNormal(pa, pqa, pqb);
                         tb.SetNormal(pqa, pb, pc);
@@ -516,8 +519,8 @@ namespace EzySlice {
                     if (tri.hasTangent)
                     {
                         // the computed Tangent coordinate if the intersection point
-                        Vector4 pqa = tri.GenerateTangent(qa);
-                        Vector4 pqb = tri.GenerateTangent(qb);
+                        Vector4 pqa = tri.GenerateTangent(qa.ToVector3());
+                        Vector4 pqb = tri.GenerateTangent(qb.ToVector3());
                         Vector4 pa = tri.tangentA;
                         Vector4 pb = tri.tangentB;
                         Vector4 pc = tri.tangentC;
@@ -553,8 +556,8 @@ namespace EzySlice {
                 else
                 {
                     //Debug.Log("6");
-                    Vector3 qa = contour.line.positionA;
-                    Vector3 qb = contour.line.positionB;
+                    Vector3D qa = contour.line.positionA;
+                    Vector3D qb = contour.line.positionB;
 
                     Triangle ta = new Triangle(qa, qb, c);
                     Triangle tb = new Triangle(a, qb, qa);
@@ -564,8 +567,8 @@ namespace EzySlice {
                     if (tri.hasUV)
                     {
                         // the computed UV coordinate if the intersection point
-                        Vector2 pqa = tri.GenerateUV(qa);
-                        Vector2 pqb = tri.GenerateUV(qb);
+                        Vector2 pqa = tri.GenerateUV(qa.ToVector3());
+                        Vector2 pqb = tri.GenerateUV(qb.ToVector3());
                         Vector2 pa = tri.uvA;
                         Vector2 pb = tri.uvB;
                         Vector2 pc = tri.uvC;
@@ -579,11 +582,11 @@ namespace EzySlice {
                     if (tri.hasNormal)
                     {
                         // the computed Normal coordinate if the intersection point
-                        Vector3 pqa = tri.GenerateNormal(qa);
-                        Vector3 pqb = tri.GenerateNormal(qb);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
+                        Vector3D pqa = tri.GenerateNormal(qa.ToVector3());
+                        Vector3D pqb = tri.GenerateNormal(qb.ToVector3());
+                        Vector3D pa = tri.normalA;
+                        Vector3D pb = tri.normalB;
+                        Vector3D pc = tri.normalC;
 
                         ta.SetNormal(pqa, pqb, pc);
                         tb.SetNormal(pa, pqb, pqa);
@@ -594,8 +597,8 @@ namespace EzySlice {
                     if (tri.hasTangent)
                     {
                         // the computed Tangent coordinate if the intersection point
-                        Vector4 pqa = tri.GenerateTangent(qa);
-                        Vector4 pqb = tri.GenerateTangent(qb);
+                        Vector4 pqa = tri.GenerateTangent(qa.ToVector3());
+                        Vector4 pqb = tri.GenerateTangent(qb.ToVector3());
                         Vector4 pa = tri.tangentA;
                         Vector4 pb = tri.tangentB;
                         Vector4 pc = tri.tangentC;
@@ -635,7 +638,7 @@ namespace EzySlice {
                 if (contour.flag == 1)
                 {
                     //Debug.Log("1");
-                    Vector3 qa = contour.line.positionB;
+                    Vector3D qa = contour.line.positionB;
 
                     Triangle ta = new Triangle(a, b, qa);
                     Triangle tb = new Triangle(a, qa, c);
@@ -651,7 +654,7 @@ namespace EzySlice {
                     if (tri.hasUV)
                     {
                         // the computed UV coordinate if the intersection point
-                        Vector2 pq = tri.GenerateUV(qa);
+                        Vector2 pq = tri.GenerateUV(qa.ToVector3());
                         Vector2 pa = tri.uvA;
                         Vector2 pb = tri.uvB;
                         Vector2 pc = tri.uvC;
@@ -664,10 +667,10 @@ namespace EzySlice {
                     if (tri.hasNormal)
                     {
                         // the computed Normal coordinate if the intersection point
-                        Vector3 pq = tri.GenerateNormal(qa);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
+                        Vector3D pq = tri.GenerateNormal(qa.ToVector3());
+                        Vector3D pa = tri.normalA;
+                        Vector3D pb = tri.normalB;
+                        Vector3D pc = tri.normalC;
 
                         ta.SetNormal(pa, pb, pq);
                         tb.SetNormal(pa, pq, pc);
@@ -677,7 +680,7 @@ namespace EzySlice {
                     if (tri.hasTangent)
                     {
                         // the computed Tangent coordinate if the intersection point
-                        Vector4 pq = tri.GenerateTangent(qa);
+                        Vector4 pq = tri.GenerateTangent(qa.ToVector3());
                         Vector4 pa = tri.tangentA;
                         Vector4 pb = tri.tangentB;
                         Vector4 pc = tri.tangentC;
@@ -703,7 +706,7 @@ namespace EzySlice {
                 else if (contour.flag == 2)
                 {
                     //Debug.Log("2");
-                    Vector3 qa = contour.line.positionB;
+                    Vector3D qa = contour.line.positionB;
 
                     Triangle ta = new Triangle(a, b, qa);
                     Triangle tb = new Triangle(qa, b, c);
@@ -719,7 +722,7 @@ namespace EzySlice {
                     if (tri.hasUV)
                     {
                         // the computed UV coordinate if the intersection point
-                        Vector2 pq = tri.GenerateUV(qa);
+                        Vector2 pq = tri.GenerateUV(qa.ToVector3());
                         Vector2 pa = tri.uvA;
                         Vector2 pb = tri.uvB;
                         Vector2 pc = tri.uvC;
@@ -732,10 +735,10 @@ namespace EzySlice {
                     if (tri.hasNormal)
                     {
                         // the computed Normal coordinate if the intersection point
-                        Vector3 pq = tri.GenerateNormal(qa);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
+                        Vector3D pq = tri.GenerateNormal(qa.ToVector3());
+                        Vector3D pa = tri.normalA;
+                        Vector3D pb = tri.normalB;
+                        Vector3D pc = tri.normalC;
 
                         ta.SetNormal(pa, pb, pq);
                         tb.SetNormal(pq, pb, pc);
@@ -745,7 +748,7 @@ namespace EzySlice {
                     if (tri.hasTangent)
                     {
                         // the computed Tangent coordinate if the intersection point
-                        Vector4 pq = tri.GenerateTangent(qa);
+                        Vector4 pq = tri.GenerateTangent(qa.ToVector3());
                         Vector4 pa = tri.tangentA;
                         Vector4 pb = tri.tangentB;
                         Vector4 pc = tri.tangentC;
@@ -771,7 +774,7 @@ namespace EzySlice {
                 else if (contour.flag == 3)
                 {
                     //Debug.Log("3");
-                    Vector3 qa = contour.line.positionB;
+                    Vector3D qa = contour.line.positionB;
 
                     Triangle ta = new Triangle(a, qa, c);
                     Triangle tb = new Triangle(qa, b, c);
@@ -787,7 +790,7 @@ namespace EzySlice {
                     if (tri.hasUV)
                     {
                         // the computed UV coordinate if the intersection point
-                        Vector2 pq = tri.GenerateUV(qa);
+                        Vector2 pq = tri.GenerateUV(qa.ToVector3());
                         Vector2 pa = tri.uvA;
                         Vector2 pb = tri.uvB;
                         Vector2 pc = tri.uvC;
@@ -800,10 +803,10 @@ namespace EzySlice {
                     if (tri.hasNormal)
                     {
                         // the computed Normal coordinate if the intersection point
-                        Vector3 pq = tri.GenerateNormal(qa);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
+                        Vector3D pq = tri.GenerateNormal(qa.ToVector3());
+                        Vector3D pa = tri.normalA;
+                        Vector3D pb = tri.normalB;
+                        Vector3D pc = tri.normalC;
 
                         ta.SetNormal(pa, pq, pc);
                         tb.SetNormal(pq, pb, pc);
@@ -813,7 +816,7 @@ namespace EzySlice {
                     if (tri.hasTangent)
                     {
                         // the computed Tangent coordinate if the intersection point
-                        Vector4 pq = tri.GenerateTangent(qa);
+                        Vector4 pq = tri.GenerateTangent(qa.ToVector3());
                         Vector4 pa = tri.tangentA;
                         Vector4 pb = tri.tangentB;
                         Vector4 pc = tri.tangentC;
@@ -839,8 +842,8 @@ namespace EzySlice {
                 else if (contour.flag == 4)
                 {
                     //Debug.Log("4");
-                    Vector3 qa = contour.line.positionB;
-                    Vector3 qb = contour.line.positionA;
+                    Vector3D qa = contour.line.positionB;
+                    Vector3D qb = contour.line.positionA;
 
                     Triangle ta = new Triangle(qa, b, qb);
                     Triangle tb = new Triangle(a, qa, qb);
@@ -850,8 +853,8 @@ namespace EzySlice {
                     if (tri.hasUV)
                     {
                         // the computed UV coordinate if the intersection point
-                        Vector2 pqa = tri.GenerateUV(qa);
-                        Vector2 pqb = tri.GenerateUV(qb);
+                        Vector2 pqa = tri.GenerateUV(qa.ToVector3());
+                        Vector2 pqb = tri.GenerateUV(qb.ToVector3());
                         Vector2 pa = tri.uvA;
                         Vector2 pb = tri.uvB;
                         Vector2 pc = tri.uvC;
@@ -865,11 +868,11 @@ namespace EzySlice {
                     if (tri.hasNormal)
                     {
                         // the computed Normal coordinate if the intersection point
-                        Vector3 pqa = tri.GenerateNormal(qa);
-                        Vector3 pqb = tri.GenerateNormal(qb);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
+                        Vector3D pqa = tri.GenerateNormal(qa.ToVector3());
+                        Vector3D pqb = tri.GenerateNormal(qb.ToVector3());
+                        Vector3D pa = tri.normalA;
+                        Vector3D pb = tri.normalB;
+                        Vector3D pc = tri.normalC;
 
                         ta.SetNormal(pqa, pb, pqb);
                         tb.SetNormal(pa, pqa, pqb);
@@ -880,8 +883,8 @@ namespace EzySlice {
                     if (tri.hasTangent)
                     {
                         // the computed Tangent coordinate if the intersection point
-                        Vector4 pqa = tri.GenerateTangent(qa);
-                        Vector4 pqb = tri.GenerateTangent(qb);
+                        Vector4 pqa = tri.GenerateTangent(qa.ToVector3());
+                        Vector4 pqb = tri.GenerateTangent(qb.ToVector3());
                         Vector4 pa = tri.tangentA;
                         Vector4 pb = tri.tangentB;
                         Vector4 pc = tri.tangentC;
@@ -917,8 +920,8 @@ namespace EzySlice {
                 else if (contour.flag == 5)
                 {
                     //Debug.Log("5");
-                    Vector3 qa = contour.line.positionB;
-                    Vector3 qb = contour.line.positionA;
+                    Vector3D qa = contour.line.positionB;
+                    Vector3D qb = contour.line.positionA;
 
                     Triangle ta = new Triangle(a, qa, qb);
                     Triangle tb = new Triangle(qa, b, c);
@@ -928,8 +931,8 @@ namespace EzySlice {
                     if (tri.hasUV)
                     {
                         // the computed UV coordinate if the intersection point
-                        Vector2 pqa = tri.GenerateUV(qa);
-                        Vector2 pqb = tri.GenerateUV(qb);
+                        Vector2 pqa = tri.GenerateUV(qa.ToVector3());
+                        Vector2 pqb = tri.GenerateUV(qb.ToVector3());
                         Vector2 pa = tri.uvA;
                         Vector2 pb = tri.uvB;
                         Vector2 pc = tri.uvC;
@@ -942,11 +945,11 @@ namespace EzySlice {
                     if (tri.hasNormal)
                     {
                         // the computed Normal coordinate if the intersection point
-                        Vector3 pqa = tri.GenerateNormal(qa);
-                        Vector3 pqb = tri.GenerateNormal(qb);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
+                        Vector3D pqa = tri.GenerateNormal(qa.ToVector3());
+                        Vector3D pqb = tri.GenerateNormal(qb.ToVector3());
+                        Vector3D pa = tri.normalA;
+                        Vector3D pb = tri.normalB;
+                        Vector3D pc = tri.normalC;
 
                         ta.SetNormal(pa, pqa, pqb);
                         tb.SetNormal(pqa, pb, pc);
@@ -956,8 +959,8 @@ namespace EzySlice {
                     if (tri.hasTangent)
                     {
                         // the computed Tangent coordinate if the intersection point
-                        Vector4 pqa = tri.GenerateTangent(qa);
-                        Vector4 pqb = tri.GenerateTangent(qb);
+                        Vector4 pqa = tri.GenerateTangent(qa.ToVector3());
+                        Vector4 pqb = tri.GenerateTangent(qb.ToVector3());
                         Vector4 pa = tri.tangentA;
                         Vector4 pb = tri.tangentB;
                         Vector4 pc = tri.tangentC;
@@ -993,8 +996,8 @@ namespace EzySlice {
                 else
                 {
                     //Debug.Log("6");
-                    Vector3 qa = contour.line.positionB;
-                    Vector3 qb = contour.line.positionA;
+                    Vector3D qa = contour.line.positionB;
+                    Vector3D qb = contour.line.positionA;
 
                     Triangle ta = new Triangle(qa, qb, c);
                     Triangle tb = new Triangle(a, qb, qa);
@@ -1004,8 +1007,8 @@ namespace EzySlice {
                     if (tri.hasUV)
                     {
                         // the computed UV coordinate if the intersection point
-                        Vector2 pqa = tri.GenerateUV(qa);
-                        Vector2 pqb = tri.GenerateUV(qb);
+                        Vector2 pqa = tri.GenerateUV(qa.ToVector3());
+                        Vector2 pqb = tri.GenerateUV(qb.ToVector3());
                         Vector2 pa = tri.uvA;
                         Vector2 pb = tri.uvB;
                         Vector2 pc = tri.uvC;
@@ -1019,11 +1022,11 @@ namespace EzySlice {
                     if (tri.hasNormal)
                     {
                         // the computed Normal coordinate if the intersection point
-                        Vector3 pqa = tri.GenerateNormal(qa);
-                        Vector3 pqb = tri.GenerateNormal(qb);
-                        Vector3 pa = tri.normalA;
-                        Vector3 pb = tri.normalB;
-                        Vector3 pc = tri.normalC;
+                        Vector3D pqa = tri.GenerateNormal(qa.ToVector3());
+                        Vector3D pqb = tri.GenerateNormal(qb.ToVector3());
+                        Vector3D pa = tri.normalA;
+                        Vector3D pb = tri.normalB;
+                        Vector3D pc = tri.normalC;
 
                         ta.SetNormal(pqa, pqb, pc);
                         tb.SetNormal(pa, pqb, pqa);
@@ -1034,8 +1037,8 @@ namespace EzySlice {
                     if (tri.hasTangent)
                     {
                         // the computed Tangent coordinate if the intersection point
-                        Vector4 pqa = tri.GenerateTangent(qa);
-                        Vector4 pqb = tri.GenerateTangent(qb);
+                        Vector4 pqa = tri.GenerateTangent(qa.ToVector3());
+                        Vector4 pqb = tri.GenerateTangent(qb.ToVector3());
                         Vector4 pa = tri.tangentA;
                         Vector4 pb = tri.tangentB;
                         Vector4 pc = tri.tangentC;
