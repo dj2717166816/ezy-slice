@@ -128,7 +128,7 @@ namespace EzySlice {
 
         public class LineComparer : IEqualityComparer<Line>
         {
-            private const double Tolerance = 1e-4f; // 允许的误差
+            private const double Tolerance = 5e-4f; // 允许的误差
 
             public bool Equals(Line a, Line b)
             {
@@ -242,13 +242,6 @@ namespace EzySlice {
                     Intersector.Cutting(pl,newTri,triangles.Count-1,result);
                 }
 
-                //Debug.Log($"{result.intersectLines.Count}");
-
-                //for(int i = 0; i < result.intersectLines.Count; i++)
-                //{
-                //    Debug.Log($"{result.intersectLines[i].line.positionA} {result.intersectLines[i].line.positionB}");
-                //}
-
                 List<CuttingLineAndTri> contour ;
                 //线段连成轮廓，判断切哪段,将切面三角剖分并设置uv等
                 cross = CaculateContour(result,pl,region,out contour);
@@ -258,15 +251,6 @@ namespace EzySlice {
                 {
                     //切割函数，对三角形集进行添加和标记操作
                     Intersector.ReCutting(pl, contour[i], visited, triangles, result);
-                    if (contour[i].TriIndex == -1) { continue; }
-                    int index = contour[i].TriIndex;
-                    visited[index]=true;
-                }
-
-                int sum = 0;
-                for(int i = 0; i < visited.Count; i++)
-                {
-                    if (visited[i] == true) sum++;
                 }
 
                 //建立边-三角形映射
@@ -289,12 +273,30 @@ namespace EzySlice {
                     }
                 }
 
-                //分别搜索两部分
+                //分别搜索两部分，其中is_surrounded检测开始搜索的三角形是否被包围
                 slices[submesh].upperHull = result.upperTri;
-                TriangleSearcher searcher1 = new TriangleSearcher(result.upperTri[0], LineTri, triangles, visited, slices[submesh].upperHull);
+                Triangle tri1 = new Triangle();
+                for(int i = 0; i < result.upperTri.Count;i++)
+                {
+                    if(!is_surrounded(result.upperTri[i], LineTri, visited))
+                    {
+                        tri1 = result.upperTri[i];
+                        break;
+                    }
+                }
+                TriangleSearcher searcher1 = new TriangleSearcher(tri1, LineTri, triangles, visited, slices[submesh].upperHull);
                 searcher1.StartSearch();
                 slices[submesh].lowerHull = result.lowerTri;
-                TriangleSearcher searcher2 = new TriangleSearcher(result.lowerTri[0], LineTri, triangles, visited, slices[submesh].lowerHull);
+                Triangle tri2 = new Triangle();
+                for (int i = 0; i < result.lowerTri.Count; i++)
+                {
+                    if (!is_surrounded(result.lowerTri[i], LineTri, visited))
+                    {
+                        tri2 = result.lowerTri[i];
+                        break;
+                    }
+                }
+                TriangleSearcher searcher2 = new TriangleSearcher(tri2, LineTri, triangles, visited, slices[submesh].lowerHull);
                 searcher2.StartSearch();
             }
 
@@ -307,6 +309,29 @@ namespace EzySlice {
 
             // no slicing occured, just return null to signify
             return null;
+        }
+
+        private static bool is_surrounded(Triangle tri, Dictionary<Line,List<int>> LineTri, List<bool> visited)
+        {
+            Vector3D a = tri.positionA;
+            Vector3D b = tri.positionB;
+            Vector3D c = tri.positionC;
+            Line[] lines = { new Line(a, b), new Line(b, c), new Line(c, a) };
+
+            foreach (Line line in lines)
+            {
+                if (LineTri.TryGetValue(line, out List<int> triIndices))
+                {
+                    foreach (int index in triIndices)
+                    {
+                        if (!visited[index])
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
         }
 
         class Vector3Comparer : IEqualityComparer<Vector3D>
