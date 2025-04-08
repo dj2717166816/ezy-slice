@@ -10,7 +10,7 @@ namespace EzySlice {
      */
     public sealed class Intersector {
 
-        public const float Epsilon = 0.001f;
+        public const double Epsilon = 0.001;
 
         public static bool Intersect(Plane pl, Vector3D a, Vector3D b, out Vector3D q)
         {
@@ -40,6 +40,7 @@ namespace EzySlice {
         //计算切割出的线段，并与三角形编号一同传入CuttingLineAndTri，这里传入的Line中的点顺序可能发生变化，不能直接用在后边切割，要用flip判断是否顺序翻转
         public static void Cutting(Plane pl, Triangle tri, int index, IntersectionResult result)
         {
+            //Debug.Log("man");
             Vector3D a = tri.positionA;
             Vector3D b = tri.positionB;
             Vector3D c = tri.positionC;
@@ -48,11 +49,20 @@ namespace EzySlice {
             SideOfPlane sb = pl.SideOf(b);
             SideOfPlane sc = pl.SideOf(c);
 
+            //不用切割的情况
+            if ((sa == sb && sb == sc) ||
+                (sa == SideOfPlane.ON && sb != SideOfPlane.ON && sb == sc) ||
+                (sb == SideOfPlane.ON && sa != SideOfPlane.ON && sa == sc) ||
+                (sc == SideOfPlane.ON && sa != SideOfPlane.ON && sa == sb))
+            {
+                return;
+            }
+
             //两个点在平面上，虽然不用切割，但是后边要存并标记
             if (sa == SideOfPlane.ON && sa == sb)
             {
                 bool on = sc == SideOfPlane.UP;
-
+                //Debug.Log(1);
                 CuttingLineAndTri clat = new CuttingLineAndTri(a, b, -1, 0);
                 if (!result.has_clat.ContainsKey(clat))
                 {
@@ -69,7 +79,7 @@ namespace EzySlice {
             if (sa == SideOfPlane.ON && sa == sc)
             {
                 bool on = sb == SideOfPlane.UP;
-
+                //Debug.Log(2);
                 CuttingLineAndTri clat = new CuttingLineAndTri(a, c, -1, 0);
                 if (!result.has_clat.ContainsKey(clat))
                 {
@@ -86,7 +96,7 @@ namespace EzySlice {
             if (sb == SideOfPlane.ON && sb == sc)
             {
                 bool on = sa == SideOfPlane.UP;
-
+                //Debug.Log(3);
                 CuttingLineAndTri clat = new CuttingLineAndTri(b, c, -1, 0);
                 if (!result.has_clat.ContainsKey(clat))
                 {
@@ -98,15 +108,6 @@ namespace EzySlice {
                     clat.doubletri[1] = (index, on);
                     result.AddCuttingLine(clat);
                 }
-                return;
-            }
-
-            //不用切割的情况
-            if ((sa == sb && sb == sc)||
-                (sa == SideOfPlane.ON && sb != SideOfPlane.ON && sb == sc) ||
-                (sb == SideOfPlane.ON && sa != SideOfPlane.ON && sa == sc) || 
-                (sc == SideOfPlane.ON && sa != SideOfPlane.ON && sa == sb))
-            {
                 return;
             }
 

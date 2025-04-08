@@ -43,7 +43,13 @@ namespace EzySlice
                 get { return this.original; }
             }
         }
-
+        public static bool Equals(Vector3D a, Vector3D b)
+        {
+            double Tolerance = 1e-4;
+            return (Math.Abs(a.x - b.x) < Tolerance &&
+                   Math.Abs(a.y - b.y) < Tolerance &&
+                   Math.Abs(a.z - b.z) < Tolerance);
+        }
         //对轮廓三角形化
         //输入有顺序的轮廓点集、平面法线，输出三角形集
         public static bool Triangulate(List<Vector3D> vertices, Vector3D normal, out List<Triangle> tri, TextureRegion texRegion, bool flip)
@@ -65,7 +71,7 @@ namespace EzySlice
 
             //创建平面上的正交向量
             Vector3D u = Vector3D.Normalize(Vector3D.Cross(normal, new Vector3D(Vector3.up)));
-            if (new Vector3D(Vector3.zero) == u)
+            if (Equals(new Vector3D(Vector3.zero), u))
             {//防止法线与上方向平行
                 u = Vector3D.Normalize(Vector3D.Cross(normal, new Vector3D(Vector3.forward)));
             }
