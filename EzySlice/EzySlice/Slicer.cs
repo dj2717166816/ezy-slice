@@ -284,8 +284,10 @@ namespace EzySlice {
                         break;
                     }
                 }
-                TriangleSearcher searcher1 = new TriangleSearcher(tri1, LineTri, triangles, visited, slices[submesh].upperHull);
+                TriangleSearcher searcher1 = new TriangleSearcher(tri1, LineTri, triangles, visited);
                 searcher1.StartSearch();
+                searcher1.FillResult(slices[submesh].upperHull);
+
                 slices[submesh].lowerHull = result.lowerTri;
                 Triangle tri2 = new Triangle();
                 for (int i = 0; i < result.lowerTri.Count; i++)
@@ -296,8 +298,9 @@ namespace EzySlice {
                         break;
                     }
                 }
-                TriangleSearcher searcher2 = new TriangleSearcher(tri2, LineTri, triangles, visited, slices[submesh].lowerHull);
+                TriangleSearcher searcher2 = new TriangleSearcher(tri2, LineTri, triangles, visited);
                 searcher2.StartSearch();
+                searcher2.FillResult(slices[submesh].lowerHull);
             }
 
             for (int i = 0; i < slices.Length; i++) {
