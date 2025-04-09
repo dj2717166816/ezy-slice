@@ -364,10 +364,18 @@ namespace EzySlice {
 
         private static  List<Triangle> CaculateContour(IntersectionResult result, Plane pl, TextureRegion region, out List<CuttingLineAndTri> contour)
         {
+            /*这里字典原来是Line映射到List<int>，float应该是会导致Intersector中用平面切割线段的时候切的不是很准，使切割点的坐标在字典中映射时映射不对
+            具体表现有但不限于：一个端点对应多于或少于两条截面线段、原本加入字典\HashSet的点查找不到、截面点的个数不对等等
 
+            具体的函数：计算线段与平面交点->Intersector.cs的Intersect(我感觉下面那俩不用看，问题应该不在那边)
+                        计算与平面相交的三角形的交点->Intersector.cs的Cutting
+                        确定截面轮廓后真正实施切割->Intersector.cs的ReCutting
+            */
             List<CuttingLineAndTri> clats = result.intersectLines;//所有的线段
             HashSet<int> verts = new HashSet<int>();
             contour =new List<CuttingLineAndTri>();//最终的轮廓
+
+
             Dictionary<int, List<int>> point2line = new Dictionary<int, List<int>>();//点到线段的映射
 
             for(int i = 0; i < clats.Count(); i++)//遍历线段，建立点到线段索引的映射，并将所有点加入点集
