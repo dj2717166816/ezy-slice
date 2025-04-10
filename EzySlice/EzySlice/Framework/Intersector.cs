@@ -10,7 +10,7 @@ namespace EzySlice {
      */
     public sealed class Intersector {
 
-        public const double Epsilon = 0.001;
+        public const double Epsilon = 1e-4;
 
         public static bool Intersect(Plane pl, Vector3D a, Vector3D b, out Vector3D q)
         {

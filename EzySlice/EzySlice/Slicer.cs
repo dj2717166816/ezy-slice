@@ -70,7 +70,10 @@ namespace EzySlice {
         //输入待切割物体，切割平面，材质范围大小，截面材质
         //主要是检查工作
         public static SlicedHull Slice(GameObject obj, Plane pl, TextureRegion crossRegion, Material crossMaterial) {
-            
+
+            //用于输出某些有问题的点在世界坐标系下的表示，便于可视化调试
+            //Debug.Log($"{obj.transform.InverseTransformPoint(new Vector3(0, 0, 0))} {obj.transform.InverseTransformPoint(new Vector3(0, 1, 0))}");
+            //Debug.Log($"{obj.transform.TransformPoint(new Vector3D(-474810.000000, 236121.234891, 23811.234891).ToVector3()).ToString("F7")} {obj.transform.TransformPoint(new Vector3D(-474810.000000, 236117.307924, 23820.692076).ToVector3()).ToString("F7")}");
             // cannot continue without a proper filter
             if (!obj.TryGetComponent<MeshFilter>(out var filter)) {
                 Debug.LogWarning("EzySlice::Slice -> Provided GameObject must have a MeshFilter Component.");
@@ -246,6 +249,11 @@ namespace EzySlice {
                 //线段连成轮廓，判断切哪段,将切面三角剖分并设置uv等
                 cross = CaculateContour(result,pl,region,out contour);
 
+                if(cross == null)
+                {
+                    return null;
+                }
+
                 //将被切的三角形进行标记并切割
                 for (int i = 0; i < contour.Count(); i++)
                 {
@@ -339,7 +347,7 @@ namespace EzySlice {
 
         class Vector3Comparer : IEqualityComparer<Vector3D>
         {
-            private const float Tolerance = 5e-3f; // 允许的误差
+            private const float Tolerance = 5e-4f; // 允许的误差
 
             public bool Equals(Vector3D a, Vector3D b)
             {
@@ -357,7 +365,6 @@ namespace EzySlice {
 
         private static  List<Triangle> CaculateContour(IntersectionResult result, Plane pl, TextureRegion region, out List<CuttingLineAndTri> contour)
         {
-
             List<CuttingLineAndTri> clats = result.intersectLines;//所有的线段
             HashSet<Vector3D> verts = new HashSet<Vector3D>(new Vector3Comparer());
             contour =new List<CuttingLineAndTri>();//最终的轮廓
@@ -376,6 +383,23 @@ namespace EzySlice {
             List<List<Vector3D>> vertexs = new List<List<Vector3D>>();
             double min_dist = double.MaxValue;
             int target = 0;
+
+            //输出没有对应到两条线段的点
+            //foreach (var v in point2line)
+            //{
+            //    if(v.Value.Count != 2)
+            //    {
+            //        Debug.Log(v.Key);
+            //    }
+            //}
+
+            //调试时查看截面点数、线段数是否一致
+            //Debug.Log($"{result.intersectLines.Count} {verts.Count} {point2line.Count}");
+
+            if(result.intersectLines.Count != verts.Count || result.intersectLines.Count != point2line.Count)
+            {
+                return null;
+            }
 
             while (verts.Count() > 0)
             {

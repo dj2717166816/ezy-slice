@@ -86,7 +86,7 @@ namespace EzySlice
 
             if (slice == null)
             {
-                return null;
+                return new GameObject[] { obj };
             }
 
             GameObject upperHull = slice.CreateUpperHull(obj, crossSectionMaterial);
