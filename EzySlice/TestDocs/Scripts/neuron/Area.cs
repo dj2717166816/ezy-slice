@@ -8,5 +8,6 @@ public class Area : MonoBehaviour
     void Start()
     {
         Debug.Log(gameObject.CaculateArea());
+        Debug.Log(gameObject.CalculateMeshVolume());
     }
 }
