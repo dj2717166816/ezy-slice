@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Ezyslice;
 using System.Linq;
-using UnityEditor.Tilemaps;
+//using UnityEditor.Tilemaps;
 
 namespace EzySlice
 {
