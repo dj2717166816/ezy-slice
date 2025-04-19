@@ -66,6 +66,7 @@ namespace EzySlice {
             }
         }
 
+        public static float area = 0;
 
         //输入待切割物体，切割平面，材质范围大小，截面材质
         //主要是检查工作
@@ -126,7 +127,9 @@ namespace EzySlice {
                 }
             }
             
-            return Slice(mesh, pl, crossRegion, crossIndex);
+            area = 0;
+
+            return Slice(obj, mesh, pl, crossRegion, crossIndex);
         }
 
         public class LineComparer : IEqualityComparer<Line>
@@ -172,7 +175,7 @@ namespace EzySlice {
                 }
             }
         }
-        public static SlicedHull Slice(Mesh sharedMesh, Plane pl, TextureRegion region, int crossIndex) {
+        public static SlicedHull Slice(GameObject obj, Mesh sharedMesh, Plane pl, TextureRegion region, int crossIndex) {
             if (sharedMesh == null) {
                 return null;
             }
@@ -252,6 +255,21 @@ namespace EzySlice {
                 if(cross == null)
                 {
                     return null;
+                }
+                else
+                {
+                    foreach(var tri in cross)
+                    {
+                        Vector3 v1 = tri.positionA.ToVector3();
+                        Vector3 v2 = tri.positionB.ToVector3();
+                        Vector3 v3 = tri.positionC.ToVector3();
+
+                        Vector3 worldV1 = obj.transform.TransformPoint(v1);
+                        Vector3 worldV2 = obj.transform.TransformPoint(v2);
+                        Vector3 worldV3 = obj.transform.TransformPoint(v3);
+
+                        area += CalculateTriangleArea(worldV1, worldV2, worldV3);//计算截面面积
+                    }
                 }
 
                 //将被切的三角形进行标记并切割
@@ -681,6 +699,20 @@ namespace EzySlice {
             }
 
             return newMesh;
+        }
+
+        public static float CalculateTriangleArea(Vector3 A, Vector3 B, Vector3 C)
+        {
+            // 计算边向量 AB 和 AC
+            Vector3 AB = B - A;
+            Vector3 AC = C - A;
+
+            // 叉乘计算法向量
+            Vector3 crossProduct = Vector3.Cross(AB, AC);
+
+            // 面积 = 叉乘长度的一半
+            float area = crossProduct.magnitude * 0.5f;
+            return area;
         }
     }
 }
