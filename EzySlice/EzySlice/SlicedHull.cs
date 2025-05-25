@@ -29,28 +29,32 @@ namespace EzySlice {
                 newObject.transform.localRotation = original.transform.localRotation;
                 newObject.transform.localScale = original.transform.localScale;//切割后的部分保持和原物体同位置旋转和缩放
 
-                Material[] shared = original.GetComponent<MeshRenderer>().sharedMaterials;
+                Material[] shared = { original.GetComponent<MeshRenderer>().sharedMaterials[0] };
                 Mesh mesh = original.GetComponent<MeshFilter>().sharedMesh;
 
-                // nothing changed in the hierarchy, the cross section must have been batched
-                // with the submeshes, return as is, no need for any changes
-                if (mesh.subMeshCount == upper_hull.subMeshCount) {//如果没有多出来的子网格
-                    // the the material information
-                    newObject.GetComponent<Renderer>().sharedMaterials = shared;
+                //// nothing changed in the hierarchy, the cross section must have been batched
+                //// with the submeshes, return as is, no need for any changes
+                //if (mesh.subMeshCount == upper_hull.subMeshCount) {//如果没有多出来的子网格
+                //    // the the material information
+                //    newObject.GetComponent<Renderer>().sharedMaterials = shared;
 
-                    return newObject;
-                }
+                //    return newObject;
+                //}
 
-                // otherwise the cross section was added to the back of the submesh array because
-                // it uses a different material. We need to take this into account
-                Material[] newShared = new Material[shared.Length + 1];
+                //// otherwise the cross section was added to the back of the submesh array because
+                //// it uses a different material. We need to take this into account
+                //Material[] newShared = new Material[shared.Length + 1];
 
-                // copy our material arrays across using native copy (should be faster than loop)
-                System.Array.Copy(shared, newShared, shared.Length);//复制之前的材质
-                newShared[shared.Length] = crossSectionMat;//添加新截面材质
+                //// copy our material arrays across using native copy (should be faster than loop)
+                //System.Array.Copy(shared, newShared, shared.Length);//复制之前的材质
+                //newShared[shared.Length] = crossSectionMat;//添加新截面材质
 
-                // the the material information
-                newObject.GetComponent<Renderer>().sharedMaterials = newShared;
+                //// the the material information
+                //newObject.GetComponent<Renderer>().sharedMaterials = newShared;
+
+                newObject.GetComponent<Renderer>().sharedMaterials = shared;
+
+                return newObject;
             }
 
             return newObject;
@@ -68,28 +72,32 @@ namespace EzySlice {
                 newObject.transform.localRotation = original.transform.localRotation;
                 newObject.transform.localScale = original.transform.localScale;
 
-                Material[] shared = original.GetComponent<MeshRenderer>().sharedMaterials;
+                Material[] shared = { original.GetComponent<MeshRenderer>().sharedMaterials[0] };
                 Mesh mesh = original.GetComponent<MeshFilter>().sharedMesh;
 
-                // nothing changed in the hierarchy, the cross section must have been batched
-                // with the submeshes, return as is, no need for any changes
-                if (mesh.subMeshCount == lower_hull.subMeshCount) {
-                    // the the material information
-                    newObject.GetComponent<Renderer>().sharedMaterials = shared;
+                //// nothing changed in the hierarchy, the cross section must have been batched
+                //// with the submeshes, return as is, no need for any changes
+                //if (mesh.subMeshCount == lower_hull.subMeshCount) {
+                //    // the the material information
+                //    newObject.GetComponent<Renderer>().sharedMaterials = shared;
 
-                    return newObject;
-                }
+                //    return newObject;
+                //}
 
-                // otherwise the cross section was added to the back of the submesh array because
-                // it uses a different material. We need to take this into account
-                Material[] newShared = new Material[shared.Length + 1];
+                //// otherwise the cross section was added to the back of the submesh array because
+                //// it uses a different material. We need to take this into account
+                //Material[] newShared = new Material[shared.Length + 1];
 
-                // copy our material arrays across using native copy (should be faster than loop)
-                System.Array.Copy(shared, newShared, shared.Length);
-                newShared[shared.Length] = crossSectionMat;
+                //// copy our material arrays across using native copy (should be faster than loop)
+                //System.Array.Copy(shared, newShared, shared.Length);
+                //newShared[shared.Length] = crossSectionMat;
 
-                // the the material information
-                newObject.GetComponent<Renderer>().sharedMaterials = newShared;
+                //// the the material information
+                //newObject.GetComponent<Renderer>().sharedMaterials = newShared;
+
+                newObject.GetComponent<Renderer>().sharedMaterials = shared;
+
+                return newObject;
             }
 
             return newObject;
@@ -134,9 +142,27 @@ namespace EzySlice {
             newObject.AddComponent<MeshRenderer>();
             MeshFilter filter = newObject.AddComponent<MeshFilter>();
 
+            MergeSubMeshes(hull);
+
             filter.mesh = hull;
 
             return newObject;
         }
+        private static void MergeSubMeshes(Mesh mesh)
+        {
+            if (mesh.subMeshCount <= 1) return;
+
+            List<int> mergedTriangles = new List<int>();
+
+            for (int i = 0; i < mesh.subMeshCount; i++)
+            {
+                int[] tris = mesh.GetTriangles(i);
+                mergedTriangles.AddRange(tris);
+            }
+
+            mesh.subMeshCount = 1;
+            mesh.SetTriangles(mergedTriangles, 0);
+        }
+
     }
 }

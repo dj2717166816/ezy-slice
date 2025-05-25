@@ -66,11 +66,25 @@ namespace EzySlice {
             }
         }
 
-        public static float area = 0;
+        public static float area = 0;//在CalculateContour后赋值
+        public static List<Vector3D> VertOnContour = new List<Vector3D>();//在CalculateContour中赋值
+        public static Vector3D u, v;//在SetUV中赋值
+        public static void SetUV(Vector3D normal)
+        {
+            //创建平面上的正交向量
+            Vector3D u = Vector3D.Normalize(Vector3D.Cross(normal, new Vector3D(Vector3.up)));
+            if (Equals(new Vector3D(Vector3.zero), u))
+            {//防止法线与上方向平行
+                u = Vector3D.Normalize(Vector3D.Cross(normal, new Vector3D(Vector3.forward)));
+            }
+            Vector3D v = Vector3D.Cross(u, normal);
 
+            Slicer.u = u; 
+            Slicer.v = v;
+        }
         //输入待切割物体，切割平面，材质范围大小，截面材质
         //主要是检查工作
-        public static SlicedHull Slice(GameObject obj, Plane pl, TextureRegion crossRegion, Material crossMaterial) {
+        public static SlicedHull Slice(GameObject obj, Plane pl, TextureRegion crossRegion, Material crossMaterial, bool test) {
 
             //用于输出某些有问题的点在世界坐标系下的表示，便于可视化调试
             //Debug.Log($"{obj.transform.InverseTransformPoint(new Vector3(0, 0, 0))} {obj.transform.InverseTransformPoint(new Vector3(0, 1, 0))}");
@@ -118,18 +132,21 @@ namespace EzySlice {
             // for cases where the sliced material is null, we will append the cross section to the end
             // of the submesh array, this is because the application may want to set/change the material
             // after slicing has occured, so we don't assume anything
-            if (crossMaterial != null) {
-                for (int i = 0; i < crossIndex; i++) {
-                    if (materials[i] == crossMaterial) {
-                        crossIndex = i;
-                        break;
-                    }
-                }
-            }
+            
+            
+            //if (crossMaterial != null) {
+            //    for (int i = 0; i < crossIndex; i++) {
+            //        if (materials[i] == crossMaterial) {
+            //            crossIndex = i;
+            //            break;
+            //        }
+            //    }
+            //}
             
             area = 0;
+            VertOnContour.Clear();
 
-            return Slice(obj, mesh, pl, crossRegion, crossIndex);
+            return Slice(obj, mesh, pl, crossRegion, crossIndex, test);
         }
 
         public class LineComparer : IEqualityComparer<Line>
@@ -151,7 +168,7 @@ namespace EzySlice {
 
             public int GetHashCode(Line obj)
             {
-                return GetHashCodeUnordered(obj.positionB, obj.positionB);
+                return GetHashCodeUnordered(obj.positionA, obj.positionB);
             }
 
             private int GetHashCodeUnordered(Vector3D a, Vector3D b)
@@ -175,7 +192,7 @@ namespace EzySlice {
                 }
             }
         }
-        public static SlicedHull Slice(GameObject obj, Mesh sharedMesh, Plane pl, TextureRegion region, int crossIndex) {
+        public static SlicedHull Slice(GameObject obj, Mesh sharedMesh, Plane pl, TextureRegion region, int crossIndex, bool test) {
             if (sharedMesh == null) {
                 return null;
             }
@@ -207,7 +224,7 @@ namespace EzySlice {
 
             bool genUV = verts.Length == uv.Length;
             bool genNorm = verts.Length == norm.Length;
-            bool genTan = verts.Length == tan.Length;
+            bool genTan = verts.Length == tan.Length;;
 
             for (int submesh = 0; submesh < submeshCount; submesh++) {
                 result.Clear();
@@ -217,7 +234,7 @@ namespace EzySlice {
                 cross.Clear();
                 List<Triangle> triangles = new List<Triangle>();//三角形的列表
                 List<bool> visited = new List<bool>();
-                Dictionary<Line, List<int>> LineTri = new Dictionary<Line, List<int>>(new LineComparer());
+                
 
                 //先对三角形进行遍历，设置好UV等数据后加入三角形列表，方便用点查找
                 for (int index = 0; index < indicesCount; index += 3) {
@@ -254,6 +271,7 @@ namespace EzySlice {
 
                 if(cross == null)
                 {
+                    Debug.Log("cross");
                     return null;
                 }
                 else
@@ -264,12 +282,17 @@ namespace EzySlice {
                         Vector3 v2 = tri.positionB.ToVector3();
                         Vector3 v3 = tri.positionC.ToVector3();
 
-                        Vector3 worldV1 = obj.transform.TransformPoint(v1);
-                        Vector3 worldV2 = obj.transform.TransformPoint(v2);
-                        Vector3 worldV3 = obj.transform.TransformPoint(v3);
+                        //Vector3 worldV1 = obj.transform.TransformPoint(v1);
+                        //Vector3 worldV2 = obj.transform.TransformPoint(v2);
+                        //Vector3 worldV3 = obj.transform.TransformPoint(v3);
 
-                        area += CalculateTriangleArea(worldV1, worldV2, worldV3);//计算截面面积
+                        area += CalculateTriangleArea(v1, v2, v3);//计算非世界坐标下的截面面积
                     }
+                }
+
+                if (test)
+                {
+                    return null;
                 }
 
                 //将被切的三角形进行标记并切割
@@ -280,6 +303,7 @@ namespace EzySlice {
                 }
 
                 //建立边-三角形映射
+                Dictionary<Line, List<int>> LineTri = new Dictionary<Line, List<int>>(new LineComparer());
                 for (int i = 0; i < triangles.Count; i++)
                 {
                     Triangle tri = triangles[i];
@@ -301,30 +325,32 @@ namespace EzySlice {
 
                 //分别搜索两部分，其中is_surrounded检测开始搜索的三角形是否被包围
                 slices[submesh].upperHull = result.upperTri;
-                Triangle tri1 = new Triangle();
-                for(int i = 0; i < result.upperTri.Count;i++)
-                {
-                    if(!is_surrounded(result.upperTri[i], LineTri, visited))
-                    {
-                        tri1 = result.upperTri[i];
-                        break;
-                    }
-                }
-                TriangleSearcher searcher1 = new TriangleSearcher(tri1, LineTri, triangles, visited);
+                //Triangle tri1 = result.upperTri[0];
+                //for(int i = 0; i < result.upperTri.Count;i++)
+                //{
+                //    if(!is_surrounded(result.upperTri[i], LineTri, visited))
+                //    {
+                //        tri1 = result.upperTri[i];
+                //        break;
+                //    }
+                //}
+                //TriangleSearcher searcher1 = new TriangleSearcher(tri1, LineTri, triangles, visited);
+                TriangleSearcher searcher1 = new TriangleSearcher(result.upperTri, LineTri, triangles, visited);
                 searcher1.StartSearch();
                 searcher1.FillResult(slices[submesh].upperHull);
 
                 slices[submesh].lowerHull = result.lowerTri;
-                Triangle tri2 = new Triangle();
-                for (int i = 0; i < result.lowerTri.Count; i++)
-                {
-                    if (!is_surrounded(result.lowerTri[i], LineTri, visited))
-                    {
-                        tri2 = result.lowerTri[i];
-                        break;
-                    }
-                }
-                TriangleSearcher searcher2 = new TriangleSearcher(tri2, LineTri, triangles, visited);
+                //Triangle tri2 = result.lowerTri[0];
+                //for (int i = 0; i < result.lowerTri.Count; i++)
+                //{
+                //    if (!is_surrounded(result.lowerTri[i], LineTri, visited))
+                //    {
+                //        tri2 = result.lowerTri[i];
+                //        break;
+                //    }
+                //}
+                //TriangleSearcher searcher2 = new TriangleSearcher(tri2, LineTri, triangles, visited);
+                TriangleSearcher searcher2 = new TriangleSearcher(result.lowerTri, LineTri, triangles, visited);
                 searcher2.StartSearch();
                 searcher2.FillResult(slices[submesh].lowerHull);
             }
@@ -336,6 +362,7 @@ namespace EzySlice {
                 }
             }
 
+            Debug.Log("no slicing occured, just return null to signify");
             // no slicing occured, just return null to signify
             return null;
         }
@@ -365,7 +392,7 @@ namespace EzySlice {
 
         class Vector3Comparer : IEqualityComparer<Vector3D>
         {
-            private const float Tolerance = 5e-4f; // 允许的误差
+            private const float Tolerance = 1e-5f; // 允许的误差
 
             public bool Equals(Vector3D a, Vector3D b)
             {
@@ -427,7 +454,34 @@ namespace EzySlice {
                 Vector3D temp = new Vector3D(Vector3.zero);
                 while (verts.Contains(pt))      
                 {
-                    int ind = (!visited[point2line[pt][0]]) ? point2line[pt][0] : point2line[pt][1];//获取要访问的线段的索引
+                    if (!point2line.ContainsKey(pt))
+                    {
+                        Debug.Log($"Key {pt} not found in point2line.");
+                        return null; // 或者 continue、throw，根据逻辑需要
+                    }
+
+                    var lineList = point2line[pt];
+
+                    if (lineList == null || lineList.Count < 2)
+                    {
+                        Debug.Log($"point2line[{pt}] does not contain at least two elements.");
+                        return null;
+                    }
+
+                    int a = lineList[0];
+                    int b = lineList[1];
+
+                    if (a < 0 || a >= visited.Length || b < 0 || b >= visited.Length)
+                    {
+                        Debug.Log($"Index out of range when accessing visited: a={a}, b={b}, visited.Count={visited.Length}");
+                        return null;
+                    }
+
+                    int ind = (!visited[a]) ? a : b;//获取要访问的线段的索引
+                    //int ind = (!visited[point2line[pt][0]]) ? point2line[pt][0] : point2line[pt][1];
+
+                    if (ind >= clats.Count) { Debug.Log("ind >= clats.Count"); return null; }//处理异常
+
                     temp = clats[ind].line.positionA.Equals(pt) ? clats[ind].line.positionB : clats[ind].line.positionA;
                     //获取未访问的一边的另一个点
 
@@ -451,10 +505,14 @@ namespace EzySlice {
                 {
                     result.AddIntersectionPoint(vertexs[target][i]);//将轮廓点加入result里的切割点集，并进行三角剖分
                 }
-                //对轮廓进行三角剖分
-                return Triangulator.Triangulate(vertexs[target], pl.normal, out List<Triangle> tris, region, false) ? tris : null;
+
+                Slicer.VertOnContour = vertexs[target];
+
+                bool ok = Triangulator.Triangulate(vertexs[target], pl.normal, out List<Triangle> tris, region, false);//对轮廓进行三角剖分;
+                if (!ok) Debug.Log("不OK");
+                return  ok ? tris : null;
             }
-            
+            Debug.Log("category.count==0");
             return null;
         }
         

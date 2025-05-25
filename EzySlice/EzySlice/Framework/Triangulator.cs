@@ -8,7 +8,28 @@ using System.Linq;
 
 namespace EzySlice
 {
+    //将三维点投影到二维平面
+    public struct Mapped2D
+    {
+        private readonly Vector3D original;
+        private readonly Vector2 mapped;
 
+        public Mapped2D(Vector3D newOriginal, Vector3D u, Vector3D v)
+        {
+            this.original = newOriginal;
+            this.mapped = new Vector2((float)Vector3D.Dot(newOriginal, u), (float)Vector3D.Dot(newOriginal, v));
+        }
+
+        public Vector2 mappedValue
+        {
+            get { return this.mapped; }
+        }
+
+        public Vector3D originalValue
+        {
+            get { return this.original; }
+        }
+    }
     /**
      * Contains static functionality for performing Triangulation on arbitrary vertices.
      * Read the individual function descriptions for specific details.
@@ -21,28 +42,7 @@ namespace EzySlice
          * and is mainly used in MonotoneChain to triangulate a set of vertices
          * against a flat plane.
          */
-        //将三维点投影到二维平面
-        internal struct Mapped2D
-        {
-            private readonly Vector3D original;
-            private readonly Vector2 mapped;
-
-            public Mapped2D(Vector3D newOriginal, Vector3D u, Vector3D v)
-            {
-                this.original = newOriginal;
-                this.mapped = new Vector2((float)Vector3D.Dot(newOriginal, u), (float)Vector3D.Dot(newOriginal, v));
-            }
-
-            public Vector2 mappedValue
-            {
-                get { return this.mapped; }
-            }
-
-            public Vector3D originalValue
-            {
-                get { return this.original; }
-            }
-        }
+        
         public static bool Equals(Vector3D a, Vector3D b)
         {
             double Tolerance = 1e-4;

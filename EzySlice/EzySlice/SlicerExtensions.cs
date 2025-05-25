@@ -42,7 +42,7 @@ namespace EzySlice
         //输入物体，平面，纹理范围，材质
         public static SlicedHull Slice(this GameObject obj, Plane pl, TextureRegion textureRegion, Material crossSectionMaterial = null)
         {
-            return Slicer.Slice(obj, pl, textureRegion, crossSectionMaterial);
+            return Slicer.Slice(obj, pl, textureRegion, crossSectionMaterial, false);
         }
 
         /**
@@ -82,10 +82,11 @@ namespace EzySlice
 
         public static GameObject[] SliceInstantiate(this GameObject obj, Plane pl, TextureRegion cuttingRegion, Material crossSectionMaterial = null)
         {
-            SlicedHull slice = Slicer.Slice(obj, pl, cuttingRegion, crossSectionMaterial);
+            SlicedHull slice = Slicer.Slice(obj, pl, cuttingRegion, crossSectionMaterial, false);
 
             if (slice == null)
             {
+                Debug.Log("fail");
                 return new GameObject[] { obj };
             }
 
@@ -94,21 +95,25 @@ namespace EzySlice
 
             if (upperHull != null && lowerHull != null)
             {
+                Debug.Log("succeed");
                 return new GameObject[] { upperHull, lowerHull };
             }
 
             // otherwise return only the upper hull
             if (upperHull != null)
             {
+                Debug.Log("upper");
                 return new GameObject[] { upperHull };
             }
 
             // otherwise return only the lower hull
             if (lowerHull != null)
             {
+                Debug.Log("lower");
                 return new GameObject[] { lowerHull };
             }
 
+            Debug.Log("fail");
             // nothing to return, so return nothing!
             return null;
         }
