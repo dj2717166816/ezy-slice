@@ -34,7 +34,7 @@ public class OldIzhikevichNeuron
         // 当膜电位达到阈值时，重置膜电位，并增加恢复变量
         if (v >= 30f)
         {
-            Debug.Log("spiking");
+            //Debug.Log("spiking");
             v = c;    // 重置膜电位
             u += d;   // 增加恢复变量
             return true;  // 返回 true 表示神经元发放脉冲
@@ -64,8 +64,38 @@ public class NeuronVisualizer : MonoBehaviour
     // Start 函数在组件启动时被调用
     void Start()
     {
+        InitializeDefaultGradient();
         InitializeNeurons();  // 初始化神经元
         InitializeMeshColors();  // 初始化 Mesh 顶点颜色
+    }
+
+    void InitializeDefaultGradient()
+    {
+        if (potentialGradient == null || potentialGradient.colorKeys == null || potentialGradient.colorKeys.Length == 0)
+        {
+            potentialGradient = new Gradient();
+
+            GradientColorKey[] colorKeys = new GradientColorKey[4];
+            colorKeys[0].color = Color.cyan;   // 低电位：青
+            colorKeys[0].time = 0f;
+
+            colorKeys[1].color = Color.green;  // 稍高电位：绿
+            colorKeys[1].time = 0.33f;
+
+            colorKeys[2].color = Color.yellow; // 高电位：黄
+            colorKeys[2].time = 0.66f;
+
+            colorKeys[3].color = Color.red;    // 最高电位：红
+            colorKeys[3].time = 1f;
+
+            GradientAlphaKey[] alphaKeys = new GradientAlphaKey[2];
+            alphaKeys[0].alpha = 1f;
+            alphaKeys[0].time = 0f;
+            alphaKeys[1].alpha = 1f;
+            alphaKeys[1].time = 1f;
+
+            potentialGradient.SetKeys(colorKeys, alphaKeys);
+        }
     }
 
     // 初始化神经元对象

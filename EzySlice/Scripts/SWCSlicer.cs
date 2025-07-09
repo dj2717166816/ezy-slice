@@ -7,6 +7,8 @@ using System.Linq;
 using UnityEditor.UI;
 using NUnit.Framework;
 using JetBrains.Annotations;
+using UnityEngine.Rendering.PostProcessing;
+using static UnityEditor.Experimental.GraphView.GraphView;
 
 public class SWCSlicer : MonoBehaviour
 {
@@ -15,6 +17,7 @@ public class SWCSlicer : MonoBehaviour
     public float step;
     public bool use_step_weight;
     public float step_weight;
+    public float resistent = 0.1f;
     public Material crossmat;
     private class Node 
     {
@@ -48,7 +51,7 @@ public class SWCSlicer : MonoBehaviour
 
         public void ProcessNeighbors()
         {
-            this.neighbors = neighbors.Distinct().OrderBy(x => x).ToList();
+            this.neighbors = neighbors.Distinct().OrderBy(x => x).ToList();//对邻居根据编号进行去重和排序
         }
     }
 
@@ -69,6 +72,7 @@ public class SWCSlicer : MonoBehaviour
         ParseSWCFile(swcFilePath);
         //创建父物体集成所有子物体
         GameObject tree = new GameObject("NeuronsTree");
+        tree.layer = LayerMask.NameToLayer("Neuron");
 
         CutNeuronWithPostOrder(tree, obj, 1);
 
@@ -136,19 +140,20 @@ public class SWCSlicer : MonoBehaviour
 
             int a = node;
 
-            foreach (var b in nodes[a].children)
+            for (int i = nodes[a].children.Count-1;i>=0;i--)
             {
-                float segmentLength = LengthBetween(nodes[a].position, nodes[b].position);
+                int b = nodes[a].children[i];
+                float segmentLength = LengthBetween(nodes[a].position, nodes[b].position, !use_step_weight);
                 float newDistance = distance + segmentLength;
 
                 if (newDistance > step)
                 {
-                    Vector3 mean = (nodes[a].position + nodes[b].position) / 2;
+                    Vector3 mean = (nodes[a].position + nodes[b].position) / 2;//中点的位置
                     Vector3 v = nodes[b].position - nodes[a].position;
 
-                    int ptnum = NumOfPtIn(obj, mean, v);
+                    int ptnum = NumOfPtIn(obj, mean, v);//计算截面内有几条SWC
 
-                    if (use_step_weight && ptnum == 1) { step = step_weight * Slicer.area; }
+                    if (use_step_weight && ptnum == 1) { step = 2 * step_weight * Mathf.Sqrt(Slicer.area/Mathf.PI); }//如果使用带权重的步长
 
                     stack1.Push((b, ptnum == 1 ? 0f : newDistance, ptnum == 1));
                 }
@@ -186,10 +191,21 @@ public class SWCSlicer : MonoBehaviour
                 {
                     Destroy(tar);
                 }
-                tar = outcomes[1];
-                //step = Slicer.area * step_weight;//调整步长(在这调没用，要改)
-                outcomes[0].transform.parent = parent.transform;
-                outcomes[0].name = $"Compartment_{parent.transform.childCount}";
+
+                GameObject com;
+                if (outcomes[0].GetComponent<MeshFilter>().sharedMesh.vertices.Length <= outcomes[1].GetComponent<MeshFilter>().sharedMesh.vertices.Length)
+                {
+                    com = outcomes[0];
+                    tar = outcomes[1];//更新切剩下的部分作为下一次切割的对象
+                }
+                else
+                {
+                    com = outcomes[1];
+                    tar = outcomes[0];
+                }
+                com.transform.parent = parent.transform;//将compartment放到父物体下
+                com.name = $"Compartment_{parent.transform.childCount}";
+                com.AddComponent<NeuronNode>();//添加可视化脚本
                 Compartment newpart = new Compartment(parent.transform.childCount);
                 compartments.Add(newpart);
                 FindNeighbor(b, parent.transform.childCount);
@@ -197,12 +213,13 @@ public class SWCSlicer : MonoBehaviour
         }
         tar.transform.parent = parent.transform;
         tar.name = $"Compartment_{parent.transform.childCount}";
+        tar.AddComponent<NeuronNode>();
         Compartment np = new Compartment(parent.transform.childCount);
         compartments.Add(np);
         FindNeighbor(1, parent.transform.childCount);
     }
 
-    //获取每个节点所属的部分，以找到每个部分的邻居
+    //获取每个节点所属的部分，以找到每个部分的邻居，即给每个Node添加compartment属性
     public void FindNeighbor(int b, int com)
     {
         Queue<int> queue = new Queue<int>();
@@ -236,7 +253,7 @@ public class SWCSlicer : MonoBehaviour
             {
                 if (nodes[child].compartment != com)
                 {
-                    Debug.Log(com);
+                    //Debug.Log(com);
                     compartments[com].neighbors.Add(nodes[child].compartment);
                     compartments[nodes[child].compartment].neighbors.Add(com);
                 }
@@ -251,18 +268,35 @@ public class SWCSlicer : MonoBehaviour
 
     public void AddScripts(GameObject parent)
     {
-        for(int i = 1; i < compartments.Count; i++)
-        {
-            GameObject child = parent.transform.Find($"Compartment_{i}").gameObject;
-            var ChildNode = child.AddComponent<NeuronNode>();
-        }
         for (int i = 1; i < compartments.Count; i++)
         {
             GameObject child = parent.transform.Find($"Compartment_{i}").gameObject;
+
+            child.layer = LayerMask.NameToLayer("Neuron");
+            var volume = child.AddComponent<PostProcessVolume>();
+            volume.isGlobal = true;
+            volume.priority = 10;
+
+            PostProcessProfile profile = ScriptableObject.CreateInstance<PostProcessProfile>();
+            volume.sharedProfile = profile;
+
+            var bloom = ScriptableObject.CreateInstance<Bloom>();
+            bloom.enabled.Override(true);
+            bloom.intensity.Override(2.5f);   // 发光强度
+            bloom.threshold.Override(0.3f);   // 亮度阈值
+            bloom.softKnee.Override(0.5f);
+            bloom.clamp.Override(65472f);
+            bloom.diffusion.Override(10f);
+            bloom.anamorphicRatio.Override(0f);
+            bloom.color.Override(Color.white);
+            bloom.fastMode.Override(false);
+
+            profile.AddSettings(bloom);
+
             var ChildNode = child.GetComponent<NeuronNode>();
             foreach (int neighbor in compartments[i].neighbors)
             {
-                ChildNode.AddConnection(parent.transform.Find($"Compartment_{neighbor}").gameObject.GetComponent<NeuronNode>());
+                ChildNode.AddConnection(parent.transform.Find($"Compartment_{neighbor}").gameObject.GetComponent<NeuronNode>(), resistent, false);
             }
         }
     }
@@ -326,11 +360,18 @@ public class SWCSlicer : MonoBehaviour
         return inside;
     }
 
-    public float LengthBetween(Vector3 start, Vector3 end)
+    public float LengthBetween(Vector3 start, Vector3 end, bool world)
     {
-        Vector3 a = obj.transform.TransformPoint(start);
-        Vector3 b = obj.transform.TransformPoint(end);
-        Vector3 v = a - b;
-        return v.magnitude;
+        if (world)
+        {
+            Vector3 a = obj.transform.TransformPoint(start);
+            Vector3 b = obj.transform.TransformPoint(end);
+            Vector3 v = a - b;
+            return v.magnitude;
+        }
+        else
+        {
+            return (start - end).magnitude;
+        }
     }
 }
